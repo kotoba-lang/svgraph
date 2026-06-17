@@ -3,7 +3,7 @@
     #board .panel { color: #dcfce7; fill: url(#panel); stroke: hsl(143 65% 24%); stroke-width: 3; }
     #board > rect.panel.featured { stroke-linejoin: miter; stroke-miterlimit: 6; }
     g.badges .badge { fill: currentColor; color: #f97316; stroke: hsla(0.349066rad, 75%, 28%, .7); stroke-width: 2; }
-    text.title { fill: #111827; font-size: 15pt !important; font-weight: 700; font-style: italic; font-family: 'Aptos Display', Arial, sans-serif; text-decoration: underline; text-anchor: middle; dominant-baseline: middle; }
+    text.title { fill: #111827; stroke: #ffffff; stroke-width: .75; font-size: 15pt !important; font-weight: 700; font-style: italic; font-family: 'Aptos Display', Arial, sans-serif; text-decoration: underline; text-anchor: middle; dominant-baseline: middle; }
     .route { fill: none; stroke: #0891b2; stroke-width: 1mm !important; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 2mm, 1mm; }
     rect[data-tone="cool"] { fill: #dbeafe; stroke: #1d4ed8; stroke-width: 2; }
     rect[data-icon^="coverage"][data-icon$="probe"][data-tags~="signal"] { fill: #f0fdf4; stroke: #15803d; }

@@ -627,7 +627,15 @@ def _svg_marker_value(value: str | None, refs: dict[str, ET.Element]) -> str | N
 
 def _text_paint(style: dict[str, str], refs: dict[str, ET.Element], css: list[CssRule] | None = None) -> Paint:
     fill, color_alpha = _paint_value(style.get("fill"), refs, style.get("color"), css or [])
-    return Paint(fill=fill or "#000000", fill_alpha=_combined_alpha(_alpha(style, "fill"), color_alpha))
+    stroke, stroke_color_alpha = _paint_value(style.get("stroke"), refs, style.get("color"), css or [])
+    stroke_width = _optional_length(style.get("stroke-width"), "x", (0.0, 0.0))
+    return Paint(
+        fill=fill or "#000000",
+        stroke=stroke,
+        stroke_width=stroke_width,
+        fill_alpha=_combined_alpha(_alpha(style, "fill"), color_alpha),
+        stroke_alpha=_combined_alpha(_alpha(style, "stroke"), stroke_color_alpha),
+    )
 
 
 def _font_family(value: str | None) -> str | None:
@@ -661,20 +669,15 @@ def _dml_paint(sp_pr: ET.Element) -> Paint:
     marker_end = None
     ln = sp_pr.find(qn(NS_A, "ln"))
     if ln is not None:
-        stroke_width = _px(int(ln.get("w", "0"))) if ln.get("w") else None
+        stroke_width = _dml_line_width(ln)
         stroke_linecap = _dml_linecap(ln.get("cap"))
         stroke_linejoin = _dml_linejoin(ln)
         stroke_dasharray = _dml_dasharray(ln)
         stroke_miterlimit = _dml_miterlimit(ln)
         marker_start = _dml_line_arrow(ln.find(qn(NS_A, "tailEnd")))
         marker_end = _dml_line_arrow(ln.find(qn(NS_A, "headEnd")))
-        no_line = ln.find(qn(NS_A, "noFill"))
-        solid_line = ln.find(qn(NS_A, "solidFill"))
-        if no_line is not None:
-            stroke = "none"
-        elif solid_line is not None:
-            stroke = _dml_color(solid_line)
-            stroke_alpha = _dml_alpha(solid_line)
+        stroke = _dml_line_color(ln)
+        stroke_alpha = _dml_line_alpha(ln)
     return Paint(
         fill=fill,
         stroke=stroke,
@@ -693,9 +696,15 @@ def _dml_paint(sp_pr: ET.Element) -> Paint:
 def _dml_text_paint(element: ET.Element, sp_pr: ET.Element) -> Paint:
     r_pr = element.find(f".//{qn(NS_A, 'rPr')}")
     solid_fill = r_pr.find(qn(NS_A, "solidFill")) if r_pr is not None else None
-    if solid_fill is not None:
-        return Paint(fill=_dml_color(solid_fill), fill_alpha=_dml_alpha(solid_fill))
-    return _dml_paint(sp_pr)
+    ln = r_pr.find(qn(NS_A, "ln")) if r_pr is not None else None
+    shape_paint = _dml_paint(sp_pr)
+    return Paint(
+        fill=_dml_color(solid_fill) if solid_fill is not None else shape_paint.fill,
+        stroke=_dml_line_color(ln) if ln is not None else shape_paint.stroke,
+        stroke_width=_dml_line_width(ln) if ln is not None else shape_paint.stroke_width,
+        fill_alpha=_dml_alpha(solid_fill) if solid_fill is not None else shape_paint.fill_alpha,
+        stroke_alpha=_dml_line_alpha(ln) if ln is not None else shape_paint.stroke_alpha,
+    )
 
 
 def _append_dml_paint(parent: ET.Element, paint: Paint) -> None:
@@ -793,6 +802,14 @@ def _append_text_run_properties(r_pr: ET.Element, shape: Shape) -> None:
         fill = ET.SubElement(r_pr, qn(NS_A, "solidFill"))
         color = ET.SubElement(fill, qn(NS_A, "srgbClr"), {"val": shape.paint.fill.removeprefix("#").upper()})
         _append_alpha(color, shape.paint.fill_alpha)
+    if shape.paint.stroke and shape.paint.stroke != "none":
+        attrs = {}
+        if shape.paint.stroke_width is not None:
+            attrs["w"] = str(_emu(shape.paint.stroke_width))
+        ln = ET.SubElement(r_pr, qn(NS_A, "ln"), attrs)
+        solid = ET.SubElement(ln, qn(NS_A, "solidFill"))
+        color = ET.SubElement(solid, qn(NS_A, "srgbClr"), {"val": shape.paint.stroke.removeprefix("#").upper()})
+        _append_alpha(color, shape.paint.stroke_alpha)
     if shape.font_family:
         ET.SubElement(r_pr, qn(NS_A, "latin"), {"typeface": shape.font_family})
 
@@ -811,6 +828,32 @@ def _dml_alpha(parent: ET.Element) -> float | None:
     alpha = parent.find(f".//{qn(NS_A, 'alpha')}")
     if alpha is not None and alpha.get("val"):
         return int(alpha.get("val", "100000")) / 100000
+    return None
+
+
+def _dml_line_width(ln: ET.Element | None) -> float | None:
+    if ln is None or ln.get("w") is None:
+        return None
+    return _px(int(ln.get("w", "0")))
+
+
+def _dml_line_color(ln: ET.Element | None) -> str | None:
+    if ln is None:
+        return None
+    if ln.find(qn(NS_A, "noFill")) is not None:
+        return "none"
+    solid_line = ln.find(qn(NS_A, "solidFill"))
+    if solid_line is not None:
+        return _dml_color(solid_line)
+    return None
+
+
+def _dml_line_alpha(ln: ET.Element | None) -> float | None:
+    if ln is None:
+        return None
+    solid_line = ln.find(qn(NS_A, "solidFill"))
+    if solid_line is not None:
+        return _dml_alpha(solid_line)
     return None
 
 

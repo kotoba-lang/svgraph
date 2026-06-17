@@ -585,13 +585,22 @@ def test_analyze_svg_reports_unconverted_layout_length_attributes() -> None:
     }
 
 
-def test_analyze_svg_reports_unconverted_text_stroke() -> None:
-    svg = '<svg><text x="0" y="10" fill="#111111" stroke="#ffffff" stroke-width="2">Outlined</text></svg>'
+def test_text_stroke_maps_to_run_outline() -> None:
+    svg = '<svg><text x="0" y="10" fill="#111111" stroke="#ffffff" stroke-width="2" stroke-opacity=".5">Outlined</text></svg>'
 
     report = analyze_svg(svg)
+    dml = svg_to_drawingml(svg)
 
     assert report.unsupported_elements == {}
-    assert report.unsupported_attributes == {"text:stroke": 1, "text:stroke-width": 1}
+    assert report.unsupported_attributes == {}
+    assert '<a:ln w="19050">' in dml
+    assert 'val="FFFFFF"' in dml
+    assert 'val="50000"' in dml
+
+    round_trip = drawingml_to_svg(dml)
+    assert 'stroke="#ffffff"' in round_trip
+    assert 'stroke-width="2"' in round_trip
+    assert 'stroke-opacity="0.5"' in round_trip
 
 
 def test_quadratic_path_is_approximated_as_custom_geometry() -> None:
