@@ -2392,6 +2392,19 @@ def test_css_math_dasharray_and_dashoffset_are_resolved() -> None:
     assert 'stroke-dasharray="6 4 2 0"' in svg
 
 
+def test_percentage_dasharray_and_dashoffset_resolve_against_viewport_diagonal() -> None:
+    source = '<svg width="100" height="100"><line x1="0" y1="0" x2="40" y2="0" stroke="#111111" stroke-width="2" stroke-dasharray="8% 4%" stroke-dashoffset="2%"/></svg>'
+    dml = svg_to_drawingml(source)
+
+    assert '<a:custDash>' in dml
+    assert '<a:ds d="300000" sp="200000"/>' in dml
+    assert '<a:ds d="100000" sp="0"/>' in dml
+    assert analyze_svg(source).unsupported_attributes == {}
+
+    svg = drawingml_to_svg(dml)
+    assert 'stroke-dasharray="6 4 2 0"' in svg
+
+
 def test_dash_offset_inside_gap_is_reported_as_unsupported() -> None:
     source = '<svg><line x1="0" y1="0" x2="40" y2="0" stroke="#111111" stroke-width="2" stroke-dasharray="8 4" stroke-dashoffset="10"/></svg>'
 

@@ -795,7 +795,7 @@ def _svg_paint(
         stroke_alpha=stroke_alpha,
         stroke_linecap=stroke_linecap,
         stroke_linejoin=stroke_linejoin,
-        stroke_dasharray=_svg_effective_dasharray(style),
+        stroke_dasharray=_svg_effective_dasharray(style, viewport),
         stroke_miterlimit=stroke_miterlimit,
         marker_start=_svg_marker_value(_svg_marker_style_value(style, "marker-start"), refs),
         marker_end=_svg_marker_value(_svg_marker_style_value(style, "marker-end"), refs),
@@ -1278,27 +1278,37 @@ def _append_dml_dash(ln: ET.Element, value: str | None, stroke_width: float | No
         ET.SubElement(ln, qn(NS_A, "prstDash"), {"val": dash})
 
 
-def _svg_effective_dasharray(style: dict[str, str]) -> str | None:
+def _svg_effective_dasharray(style: dict[str, str], viewport: tuple[float, float] = (0.0, 0.0)) -> str | None:
     dasharray = style.get("stroke-dasharray")
     if dasharray is None:
         return None
-    offset = _optional_length(style.get("stroke-dashoffset"), "x", (0.0, 0.0))
+    nums = _svg_dasharray_numbers(dasharray, viewport)
+    if nums is None:
+        return dasharray
+    offset = _optional_length(style.get("stroke-dashoffset"), "diag", viewport)
     if offset is None or offset == 0:
+        if _svg_dasharray_needs_resolution(dasharray):
+            return " ".join(_fmt(number) for number in nums)
         return dasharray
-    shifted = _svg_dasharray_with_offset(dasharray, offset)
+    shifted = _svg_dasharray_with_offset(dasharray, offset, viewport)
     if shifted is None:
-        return dasharray
+        return " ".join(_fmt(number) for number in nums)
     return " ".join(_fmt(number) for number in shifted)
 
 
-def _svg_dashoffset_is_supported(style: dict[str, str]) -> bool:
-    offset = _optional_length(style.get("stroke-dashoffset"), "x", (0.0, 0.0))
+def _svg_dashoffset_is_supported(style: dict[str, str], viewport: tuple[float, float] = (0.0, 0.0)) -> bool:
+    offset = _optional_length(style.get("stroke-dashoffset"), "diag", viewport)
     dasharray = style.get("stroke-dasharray")
-    return offset is not None and offset != 0 and dasharray is not None and _svg_dasharray_with_offset(dasharray, offset) is not None
+    return (
+        offset is not None
+        and offset != 0
+        and dasharray is not None
+        and _svg_dasharray_with_offset(dasharray, offset, viewport) is not None
+    )
 
 
-def _svg_dasharray_with_offset(value: str, offset: float) -> list[float] | None:
-    nums = _svg_dasharray_numbers(value)
+def _svg_dasharray_with_offset(value: str, offset: float, viewport: tuple[float, float] = (0.0, 0.0)) -> list[float] | None:
+    nums = _svg_dasharray_numbers(value, viewport)
     if not nums or sum(nums) <= 0:
         return None
     if len(nums) % 2 == 1:
@@ -1334,13 +1344,13 @@ def _close(left: float, right: float, tolerance: float = 1e-9) -> bool:
     return abs(left - right) < tolerance
 
 
-def _svg_dasharray_numbers(value: str) -> list[float] | None:
+def _svg_dasharray_numbers(value: str, viewport: tuple[float, float] = (0.0, 0.0)) -> list[float] | None:
     parts = _svg_dasharray_parts(value)
     if not parts:
         return None
     nums = []
     for part in parts:
-        number = _num(part, math.nan)
+        number = _length(part, math.nan, "diag", viewport)
         if math.isnan(number) or number < 0:
             return None
         nums.append(number)
@@ -1373,6 +1383,13 @@ def _svg_dasharray_parts(value: str) -> list[str]:
     if current:
         parts.append("".join(current))
     return parts
+
+
+def _svg_dasharray_needs_resolution(value: str) -> bool:
+    return any(
+        "%" in part or re.match(r"(?:calc|min|max|clamp)\(", part.strip(), flags=re.I)
+        for part in _svg_dasharray_parts(value)
+    )
 
 
 def _svg_dasharray_to_dml(value: str) -> str | None:

@@ -291,7 +291,9 @@ def _inspect_attributes(
             continue
         if attr == "rotate" and _text_rotate_is_supported(element, specified_style):
             continue
-        if attr == "stroke-dashoffset" and (_stroke_dashoffset_has_no_effect(style) or _svg_dashoffset_is_supported(style)):
+        if attr == "stroke-dashoffset" and (
+            _stroke_dashoffset_has_no_effect(style, viewport) or _svg_dashoffset_is_supported(style, viewport)
+        ):
             continue
         if attr == "text-transform" and _text_transform_is_supported(element, specified_style):
             continue
@@ -564,30 +566,30 @@ def _fill_rule_has_no_effect(
     return paint.fill in {None, "none"}
 
 
-def _stroke_dashoffset_has_no_effect(style: dict[str, str]) -> bool:
+def _stroke_dashoffset_has_no_effect(style: dict[str, str], viewport: tuple[float, float]) -> bool:
     value = style.get("stroke-dashoffset")
     if value is None:
         return False
-    parsed = _optional_length(value, "x", (0.0, 0.0))
+    parsed = _optional_length(value, "diag", viewport)
     if parsed == 0:
         return True
     dasharray = style.get("stroke-dasharray")
     if dasharray is None or dasharray.strip().lower() in {"", "none"}:
         return True
-    period = _dash_pattern_period(dasharray)
+    period = _dash_pattern_period(dasharray, viewport)
     if period and _is_multiple_of(abs(parsed), period):
         return True
     stroke = style.get("stroke")
     if stroke is None or stroke.strip().lower() in {"", "none", "transparent"}:
         return True
-    stroke_width = _optional_length(style.get("stroke-width"), "x", (0.0, 0.0))
+    stroke_width = _optional_length(style.get("stroke-width"), "diag", viewport)
     if stroke_width == 0:
         return True
     return _alpha_is_zero(style.get("opacity")) or _alpha_is_zero(style.get("stroke-opacity"))
 
 
-def _dash_pattern_period(value: str) -> float | None:
-    nums = _svg_dasharray_numbers(value)
+def _dash_pattern_period(value: str, viewport: tuple[float, float]) -> float | None:
+    nums = _svg_dasharray_numbers(value, viewport)
     if not nums:
         return None
     period = sum(nums) * (2 if len(nums) % 2 else 1)
