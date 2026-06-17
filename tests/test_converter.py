@@ -811,7 +811,7 @@ def test_analyze_svg_skips_hidden_unsupported_details() -> None:
 
     report = analyze_svg(svg)
 
-    assert report.ignored_elements == 2
+    assert report.ignored_elements == 4
     assert report.unsupported_elements == {}
     assert report.unsupported_attributes == {}
     assert report.unsupported_path_commands == {}
@@ -831,6 +831,27 @@ def test_hidden_display_and_visibility_values_are_normalized() -> None:
     report = analyze_svg(svg)
 
     assert dml.count("<p:sp>") == 1
+    assert report.ignored_elements == 4
+    assert report.unsupported_elements == {}
+    assert report.unsupported_attributes == {}
+    assert report.unsupported_path_commands == {}
+
+
+def test_visibility_visible_descendant_renders_inside_hidden_parent() -> None:
+    svg = """<svg>
+      <g visibility="hidden">
+        <path d="M0 0 R10 20" filter="url(#blur)"/>
+        <rect x="10" y="12" width="20" height="16" fill="#16a34a" visibility="visible"/>
+      </g>
+    </svg>"""
+    dml = svg_to_drawingml(svg)
+    report = analyze_svg(svg)
+
+    root = ET.fromstring(dml)
+    shape_off = root.findall(".//{http://schemas.openxmlformats.org/drawingml/2006/main}off")[1]
+    assert dml.count("<p:sp>") == 1
+    assert 'val="16A34A"' in dml
+    assert shape_off.attrib == {"x": "95250", "y": "114300"}
     assert report.ignored_elements == 2
     assert report.unsupported_elements == {}
     assert report.unsupported_attributes == {}

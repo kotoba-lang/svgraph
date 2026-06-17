@@ -143,8 +143,9 @@ def _svg_shapes_walk(
         return
 
     style = _computed_style(element, css, inherited_style, ancestors, previous_siblings)
-    if _is_hidden(style):
+    if _is_display_none(style):
         return
+    visibility_hidden = _is_visibility_hidden(style)
     matrix = _matrix_multiply(inherited_matrix, _parse_transform(element.get("transform", "")))
     child_viewport = viewport
     if tag == "svg" and ancestors:
@@ -182,7 +183,7 @@ def _svg_shapes_walk(
             yield from _svg_shapes_walk(selected, css, refs, style, matrix, ref_stack, ancestors + (element,), child_viewport, previous_children)
         return
 
-    shape = _svg_shape_from_element(element, tag, style, matrix, refs, viewport, css, ancestors)
+    shape = None if visibility_hidden else _svg_shape_from_element(element, tag, style, matrix, refs, viewport, css, ancestors)
     if shape is not None:
         shape = _apply_rect_clip(shape, style, refs, matrix)
     if shape is not None and not _shape_has_visible_content(shape):
@@ -2755,9 +2756,17 @@ def _resolve_font_size_value(value: str | None, inherited_value: str | None) -> 
 
 
 def _is_hidden(style: dict[str, str]) -> bool:
+    return _is_display_none(style) or _is_visibility_hidden(style)
+
+
+def _is_display_none(style: dict[str, str]) -> bool:
     display = " ".join(style.get("display", "").strip().lower().split())
+    return display == "none"
+
+
+def _is_visibility_hidden(style: dict[str, str]) -> bool:
     visibility = " ".join(style.get("visibility", "").strip().lower().split())
-    return display == "none" or visibility in {"hidden", "collapse"}
+    return visibility in {"hidden", "collapse"}
 
 
 def _apply_rect_clip(

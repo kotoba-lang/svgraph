@@ -12,7 +12,8 @@ from .converter import (
     _computed_style,
     _clip_path_is_supported,
     _href,
-    _is_hidden,
+    _is_display_none,
+    _is_visibility_hidden,
     _length,
     _local_name,
     _marker_is_supported,
@@ -176,7 +177,9 @@ def _walk(
 
     style = _computed_style(element, css, inherited_style, ancestors, previous_siblings)
     specified_style = _computed_style(element, css, {}, ancestors, previous_siblings)
-    hidden = _is_hidden(style)
+    display_none = _is_display_none(style)
+    visibility_hidden = _is_visibility_hidden(style)
+    hidden = display_none or visibility_hidden
     non_rendering_geometry = _has_non_rendering_geometry(element, style, viewport)
     no_visible_paint = _has_no_visible_paint(element, style, refs, css, viewport)
 
@@ -196,7 +199,7 @@ def _walk(
     else:
         stats.add_unsupported_element(tag)
 
-    if hidden or non_rendering_geometry or no_visible_paint:
+    if display_none or non_rendering_geometry or no_visible_paint:
         return
 
     matrix = _matrix_multiply(inherited_matrix, _parse_transform(element.get("transform", "")))
@@ -207,9 +210,10 @@ def _walk(
             _optional_length(element.get("width"), "x", viewport),
             _optional_length(element.get("height"), "y", viewport),
         )
-    _inspect_attributes(element, style, specified_style, refs, css, matrix, stats, ancestors, viewport)
+    if not visibility_hidden:
+        _inspect_attributes(element, style, specified_style, refs, css, matrix, stats, ancestors, viewport)
 
-    if tag == "path":
+    if tag == "path" and not visibility_hidden:
         _inspect_path(element.get("d", ""), stats)
 
     if tag == "switch":
