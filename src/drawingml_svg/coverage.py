@@ -417,7 +417,7 @@ def _attribute_has_no_effect(attr: str, style: dict[str, str]) -> bool:
     if value is None:
         return False
     normalized = " ".join(value.strip().lower().split())
-    if attr in {"clip-path", "filter", "marker-end", "marker-mid", "marker-start", "mask"}:
+    if attr in {"clip-path", "filter", "marker", "marker-end", "marker-mid", "marker-start", "mask"}:
         return normalized == "none"
     if attr in {"clip-rule", "fill-rule"}:
         return normalized == "nonzero"

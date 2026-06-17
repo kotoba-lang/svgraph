@@ -1160,6 +1160,7 @@ def test_analyze_svg_ignores_default_visual_attribute_values() -> None:
         clip-rule="nonzero"
         fill-rule="nonzero"
         filter="none"
+        marker="none"
         marker-start="none"
         marker-mid="none"
         marker-end="none"
