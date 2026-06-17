@@ -2315,6 +2315,8 @@ def _parse_style_declarations(style: str) -> dict[str, CssDeclaration]:
             continue
         key, value = item.split(":", 1)
         key = key.strip()
+        if not key.startswith("--"):
+            key = key.lower()
         normalized, important = _normalize_css_value_with_importance(value)
         if key == "font":
             for font_key, font_value in _parse_font_shorthand(normalized).items():

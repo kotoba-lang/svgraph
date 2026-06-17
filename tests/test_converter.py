@@ -486,6 +486,25 @@ def test_inline_style_important_values_are_normalized() -> None:
     assert 'w="19050"' in dml
 
 
+def test_css_property_names_are_normalized_without_changing_custom_properties() -> None:
+    svg = """<svg>
+      <style>
+        :root { --Brand: #dc2626; }
+        rect { FILL: var(--Brand); STROKE: #111111; STROKE-WIDTH: 2; }
+      </style>
+      <rect width="10" height="8"/>
+      <text x="0" y="20" style="FONT-SIZE: 10; TEXT-TRANSFORM: uppercase; FILL: #111111">mixed</text>
+    </svg>"""
+    dml = svg_to_drawingml(svg)
+
+    assert 'val="DC2626"' in dml
+    assert 'val="111111"' in dml
+    assert 'w="19050"' in dml
+    assert 'sz="1000"' in dml
+    assert "<a:t>MIXED</a:t>" in dml
+    assert analyze_svg(svg).unsupported_attributes == {}
+
+
 def test_css_declarations_ignore_semicolons_inside_values() -> None:
     svg = """<svg>
       <style>
