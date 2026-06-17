@@ -528,6 +528,9 @@ def _svg_paint(style: dict[str, str], refs: dict[str, ET.Element] | None = None,
     stroke_linecap = style.get("stroke-linecap")
     if stroke not in {None, "none"} and not stroke_linecap:
         stroke_linecap = "butt"
+    stroke_linejoin = style.get("stroke-linejoin")
+    if stroke not in {None, "none"} and not stroke_linejoin:
+        stroke_linejoin = "miter"
     return Paint(
         fill=fill,
         stroke=stroke,
@@ -535,7 +538,7 @@ def _svg_paint(style: dict[str, str], refs: dict[str, ET.Element] | None = None,
         fill_alpha=fill_alpha,
         stroke_alpha=stroke_alpha,
         stroke_linecap=stroke_linecap,
-        stroke_linejoin=style.get("stroke-linejoin"),
+        stroke_linejoin=stroke_linejoin,
         stroke_dasharray=style.get("stroke-dasharray"),
         stroke_miterlimit=_optional_num(style.get("stroke-miterlimit")),
         marker_start=_svg_marker_value(style.get("marker-start"), refs),
