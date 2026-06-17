@@ -282,7 +282,7 @@ def _svg_shape_from_element(
     if tag == "text":
         text = _svg_text_content(element, style, css, ancestors)
         if text:
-            font_size = _num(style.get("font-size"), 16) * _matrix_scale(matrix)
+            font_size = _svg_font_size(style.get("font-size")) * _matrix_scale(matrix)
             x, y = _apply_matrix(matrix, _svg_text_position(element, viewport))
             text_length = _svg_text_length(style, text, viewport)
             natural_width = max(font_size * max(len(line) for line in text.split("\n")) * 0.9, font_size * 2)
@@ -1540,6 +1540,24 @@ def _svg_text_content(
     return "\n".join(lines)
 
 
+def _svg_font_size(value: str | None) -> float:
+    if value is None:
+        return 16.0
+    keyword_sizes = {
+        "xx-small": 9.0,
+        "x-small": 10.0,
+        "small": 13.0,
+        "medium": 16.0,
+        "large": 18.0,
+        "x-large": 24.0,
+        "xx-large": 32.0,
+    }
+    normalized = value.strip().lower()
+    if normalized in keyword_sizes:
+        return keyword_sizes[normalized]
+    return _num(value, 16)
+
+
 def _presentation_style(element: ET.Element, inherited: dict[str, str]) -> dict[str, str]:
     style = dict(inherited)
     value = element.get("text-transform")
@@ -2200,6 +2218,11 @@ def _parse_style_declarations(style: str) -> dict[str, CssDeclaration]:
         key, value = item.split(":", 1)
         key = key.strip()
         normalized, important = _normalize_css_value_with_importance(value)
+        if key == "font":
+            for font_key, font_value in _parse_font_shorthand(normalized).items():
+                if font_key not in result or important or not result[font_key][1]:
+                    result[font_key] = (font_value, important)
+            continue
         if key not in result or important or not result[key][1]:
             result[key] = (normalized, important)
     return result
@@ -2241,6 +2264,90 @@ def _normalize_css_value_with_importance(value: str) -> CssDeclaration:
     if important:
         stripped = re.sub(r"\s*!important\s*$", "", stripped, flags=re.I).strip()
     return stripped, important
+
+
+def _parse_font_shorthand(value: str) -> dict[str, str]:
+    tokens = _css_value_tokens(value)
+    if not tokens:
+        return {}
+    result: dict[str, str] = {}
+    size_index: int | None = None
+    skip_next_oblique_angle = False
+    for index, token in enumerate(tokens):
+        if skip_next_oblique_angle:
+            skip_next_oblique_angle = False
+            if _font_angle_token_is_supported(token):
+                continue
+        size = token.split("/", 1)[0]
+        if _font_size_token_is_supported(size):
+            size_index = index
+            result["font-size"] = size
+            break
+        normalized = token.strip().lower()
+        if normalized in {"italic", "oblique"} or normalized.startswith("oblique "):
+            result["font-style"] = "oblique" if normalized.startswith("oblique") else normalized
+            skip_next_oblique_angle = normalized == "oblique"
+        elif normalized in {"small-caps", "all-small-caps"}:
+            result["font-variant"] = normalized
+        elif _font_weight_token_is_supported(normalized):
+            result["font-weight"] = normalized
+    if size_index is None:
+        return {}
+    family = " ".join(tokens[size_index + 1 :]).strip()
+    if family:
+        result["font-family"] = family
+    return result
+
+
+def _font_size_token_is_supported(value: str) -> bool:
+    normalized = value.strip().lower()
+    if normalized in {"xx-small", "x-small", "small", "medium", "large", "x-large", "xx-large"}:
+        return True
+    if not re.search(r"[a-z%]", normalized):
+        return normalized == "0"
+    return math.isfinite(_length(value, math.nan, "x", (0.0, 0.0)))
+
+
+def _font_angle_token_is_supported(value: str) -> bool:
+    return _transform_angle_arg(value) is not None and any(value.strip().lower().endswith(unit) for unit in ("deg", "rad", "grad", "turn"))
+
+
+def _font_weight_token_is_supported(value: str) -> bool:
+    if value in {"normal", "bold", "bolder", "lighter"}:
+        return True
+    try:
+        weight = int(value)
+    except ValueError:
+        return False
+    return 1 <= weight <= 1000
+
+
+def _css_value_tokens(value: str) -> list[str]:
+    tokens: list[str] = []
+    current: list[str] = []
+    quote: str | None = None
+    paren_depth = 0
+    for char in value:
+        if quote is not None:
+            current.append(char)
+            if char == quote:
+                quote = None
+            continue
+        if char in {"'", '"'}:
+            quote = char
+        elif char == "(":
+            paren_depth += 1
+        elif char == ")" and paren_depth:
+            paren_depth -= 1
+        if char.isspace() and paren_depth == 0:
+            if current:
+                tokens.append("".join(current))
+                current = []
+            continue
+        current.append(char)
+    if current:
+        tokens.append("".join(current))
+    return tokens
 
 
 def _collect_css(root: ET.Element) -> list[CssRule]:

@@ -2765,6 +2765,29 @@ def test_tspan_text_anchor_and_bold_convert() -> None:
     assert 'y="40"' in svg
 
 
+def test_css_font_shorthand_expands_to_text_properties() -> None:
+    svg = """<svg>
+      <style>
+        text.title { font: italic small-caps 700 18px/1.2 "Aptos Display", Arial, sans-serif; fill: #111111; }
+        text.caption { font: oblique 10deg bold large "Aptos"; fill: #222222; }
+        text.override { font: 10px Arial !important; font-size: 20px; fill: #333333; }
+      </style>
+      <text class="title" x="0" y="20">Title</text>
+      <text class="caption" x="0" y="48">Caption</text>
+      <text class="override" x="0" y="76">Override</text>
+    </svg>"""
+    dml = svg_to_drawingml(svg)
+
+    assert 'sz="1800"' in dml
+    assert 'sz="1000"' in dml
+    assert 'b="1"' in dml
+    assert 'i="1"' in dml
+    assert 'cap="small"' in dml
+    assert 'typeface="Aptos Display"' in dml
+    assert 'typeface="Aptos"' in dml
+    assert analyze_svg(svg).unsupported_attributes == {}
+
+
 def test_drawingml_multiple_text_paragraphs_round_trip_to_svg_lines() -> None:
     dml = """<p:spTree xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
       xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
