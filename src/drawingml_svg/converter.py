@@ -1977,11 +1977,19 @@ def _num(value: str | None, default: float) -> float:
         return float(default)
     stripped = value.strip()
     scale = 1.0
-    if stripped.endswith("px"):
-        stripped = stripped[:-2]
-    elif stripped.endswith("pt"):
-        stripped = stripped[:-2]
-        scale = 96 / 72
+    for suffix, unit_scale in (
+        ("px", 1.0),
+        ("pt", 96 / 72),
+        ("pc", 16.0),
+        ("in", 96.0),
+        ("cm", 96 / 2.54),
+        ("mm", 96 / 25.4),
+        ("q", 96 / 101.6),
+    ):
+        if stripped.endswith(suffix):
+            stripped = stripped[: -len(suffix)]
+            scale = unit_scale
+            break
     try:
         return float(stripped) * scale
     except ValueError:

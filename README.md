@@ -74,6 +74,11 @@ This is intentionally conservative. Unsupported SVG elements are skipped, and un
 ```text
 1 px = 9525 EMU
 1 pt = 1.3333 px
+1 pc = 16 px
+1 in = 96 px
+1 cm = 37.7953 px
+1 mm = 3.7795 px
+1 q = 0.9449 px
 ```
 
 ## License

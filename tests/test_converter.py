@@ -415,6 +415,23 @@ def test_pt_units_are_converted_to_px() -> None:
     assert 'stroke-dasharray="8 4"' in svg
 
 
+def test_absolute_length_units_are_converted_to_px() -> None:
+    dml = svg_to_drawingml(
+        '<svg><rect x="0" y="0" width="1in" height="2.54cm" fill="none" stroke="#111111" stroke-width="1mm" stroke-dasharray="2mm 1mm"/></svg>'
+    )
+
+    assert 'cx="914400"' in dml
+    assert 'cy="914400"' in dml
+    assert '<a:ln w="36000">' in dml
+    assert '<a:ds d="200000" sp="100000"/>' in dml
+
+    svg = drawingml_to_svg(dml)
+    assert 'width="96"' in svg
+    assert 'height="96"' in svg
+    assert 'stroke-width="3.7795"' in svg
+    assert 'stroke-dasharray="7.5591 3.7795"' in svg
+
+
 def test_line_markers_convert_to_drawingml_arrows_and_round_trip() -> None:
     svg = """<svg>
       <defs><marker id="arrow" viewBox="0 0 10 10"><path d="M0 0 L10 5 L0 10 Z"/></marker></defs>
