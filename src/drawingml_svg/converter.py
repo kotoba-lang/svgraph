@@ -3124,38 +3124,94 @@ def _matrix_multiply(
 def _parse_transform(value: str) -> tuple[float, float, float, float, float, float]:
     matrix = _identity_matrix()
     for name, raw_args in re.findall(r"([a-zA-Z]+)\(([^)]*)\)", value):
-        try:
-            args = [_finite_float(item) for item in re.findall(r"[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?", raw_args)]
-        except ValueError:
-            continue
+        raw_values = _transform_arguments(raw_args)
         item = _identity_matrix()
-        if name == "matrix" and len(args) >= 6:
-            item = tuple(args[:6])  # type: ignore[assignment]
+        if name == "matrix" and len(raw_values) >= 6:
+            numbers = [_transform_number_arg(item) for item in raw_values]
+            if any(item is None for item in numbers):
+                continue
+            numbers = [item for item in numbers if item is not None]
+            item = tuple(numbers[:6])  # type: ignore[assignment]
         elif name == "translate":
-            item = (1.0, 0.0, 0.0, 1.0, args[0] if args else 0.0, args[1] if len(args) > 1 else 0.0)
+            lengths = [_transform_length_arg(raw_values[index]) for index in range(min(len(raw_values), 2))]
+            if any(length is None for length in lengths):
+                continue
+            item = (1.0, 0.0, 0.0, 1.0, lengths[0] if lengths else 0.0, lengths[1] if len(lengths) > 1 else 0.0)
         elif name == "scale":
-            sx = args[0] if args else 1.0
-            sy = args[1] if len(args) > 1 else sx
+            numbers = [_transform_number_arg(item) for item in raw_values]
+            if any(item is None for item in numbers):
+                continue
+            numbers = [item for item in numbers if item is not None]
+            sx = numbers[0] if numbers else 1.0
+            sy = numbers[1] if len(numbers) > 1 else sx
             item = (sx, 0.0, 0.0, sy, 0.0, 0.0)
         elif name == "rotate":
-            angle = math.radians(args[0] if args else 0.0)
+            angle_degrees = _transform_angle_arg(raw_values[0]) if raw_values else 0.0
+            if angle_degrees is None:
+                continue
+            angle = math.radians(angle_degrees)
             cos_a = math.cos(angle)
             sin_a = math.sin(angle)
             rotation = (cos_a, sin_a, -sin_a, cos_a, 0.0, 0.0)
-            if len(args) >= 3:
-                cx, cy = args[1], args[2]
+            if len(raw_values) >= 3:
+                cx = _transform_length_arg(raw_values[1])
+                cy = _transform_length_arg(raw_values[2])
+                if cx is None or cy is None:
+                    continue
                 item = _matrix_multiply(
                     _matrix_multiply((1.0, 0.0, 0.0, 1.0, cx, cy), rotation),
                     (1.0, 0.0, 0.0, 1.0, -cx, -cy),
                 )
             else:
                 item = rotation
-        elif name == "skewX" and args:
-            item = (1.0, 0.0, math.tan(math.radians(args[0])), 1.0, 0.0, 0.0)
-        elif name == "skewY" and args:
-            item = (1.0, math.tan(math.radians(args[0])), 0.0, 1.0, 0.0, 0.0)
+        elif name == "skewX" and raw_values:
+            angle_degrees = _transform_angle_arg(raw_values[0])
+            if angle_degrees is None:
+                continue
+            item = (1.0, 0.0, math.tan(math.radians(angle_degrees)), 1.0, 0.0, 0.0)
+        elif name == "skewY" and raw_values:
+            angle_degrees = _transform_angle_arg(raw_values[0])
+            if angle_degrees is None:
+                continue
+            item = (1.0, math.tan(math.radians(angle_degrees)), 0.0, 1.0, 0.0, 0.0)
         matrix = _matrix_multiply(matrix, item)
     return matrix
+
+
+def _transform_arguments(value: str) -> list[str]:
+    return re.findall(rf"{NUMBER_RE}(?:[A-Za-z%]+)?", value)
+
+
+def _transform_number_arg(value: str) -> float | None:
+    try:
+        if re.search(r"[A-Za-z%]", value):
+            return None
+        return _finite_float(value)
+    except ValueError:
+        return None
+
+
+def _transform_length_arg(value: str) -> float | None:
+    number = _num(value, math.nan)
+    return number if math.isfinite(number) else None
+
+
+def _transform_angle_arg(value: str) -> float | None:
+    value = value.strip().lower()
+    try:
+        if value.endswith("turn"):
+            number = _finite_float(value[:-4]) * 360
+        elif value.endswith("grad"):
+            number = _finite_float(value[:-4]) * 0.9
+        elif value.endswith("rad"):
+            number = math.degrees(_finite_float(value[:-3]))
+        elif value.endswith("deg"):
+            number = _finite_float(value[:-3])
+        else:
+            number = _finite_float(value)
+    except ValueError:
+        return None
+    return number if math.isfinite(number) else None
 
 
 def _apply_matrix(

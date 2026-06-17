@@ -1205,6 +1205,26 @@ def test_rotated_rect_stays_as_editable_rect_with_rotation() -> None:
     assert 'transform="rotate(90 20 20)"' in round_trip
 
 
+def test_transform_angle_and_length_units_are_resolved() -> None:
+    svg = """<svg>
+      <rect x="10" y="12" width="20" height="16" fill="#f97316" transform="rotate(.25turn 20px 20px)"/>
+      <rect x="0" y="0" width="1" height="1" fill="#22c55e" transform="translate(1in 2.54cm)"/>
+      <rect x="0" y="0" width="10" height="10" fill="#2563eb" transform="skewX(50grad)"/>
+      <rect x="0" y="0" width="10" height="10" fill="#9333ea" transform="rotate(1e999turn)"/>
+    </svg>"""
+    dml = svg_to_drawingml(svg)
+
+    root = ET.fromstring(dml)
+    xfrm = root.find(".//{http://schemas.openxmlformats.org/drawingml/2006/main}xfrm[@rot]")
+    offsets = root.findall(".//{http://schemas.openxmlformats.org/drawingml/2006/main}off")
+    assert xfrm is not None
+    assert xfrm.get("rot") == "5400000"
+    assert {"x": "914400", "y": "914400"} in [offset.attrib for offset in offsets]
+    assert dml.count("<a:custGeom>") == 1
+    assert 'val="9333EA"' in dml
+    assert analyze_svg(svg).unsupported_attributes == {}
+
+
 def test_reflected_rect_stays_as_editable_rect() -> None:
     svg = '<svg><rect x="10" y="12" width="20" height="16" fill="#f97316" transform="scale(-1 1)"/></svg>'
     dml = svg_to_drawingml(svg)
