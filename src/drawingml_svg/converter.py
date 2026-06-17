@@ -512,10 +512,13 @@ def _svg_paint(style: dict[str, str], refs: dict[str, ET.Element] | None = None)
     fill, fill_color_alpha = _paint_value(style.get("fill"), refs, style.get("color"))
     stroke, stroke_color_alpha = _paint_value(style.get("stroke"), refs, style.get("color"))
     stroke_width = style.get("stroke-width")
+    parsed_stroke_width = _num(stroke_width, 1) if stroke_width not in {None, "", "none"} else None
+    if parsed_stroke_width is not None and parsed_stroke_width <= 0:
+        stroke = "none"
     return Paint(
         fill=fill,
         stroke=stroke,
-        stroke_width=_num(stroke_width, 1) if stroke_width not in {None, "", "none"} else None,
+        stroke_width=parsed_stroke_width,
         fill_alpha=_combined_alpha(_alpha(style, "fill"), fill_color_alpha),
         stroke_alpha=_combined_alpha(_alpha(style, "stroke"), stroke_color_alpha),
         stroke_linecap=style.get("stroke-linecap"),
@@ -636,7 +639,10 @@ def _append_dml_paint(parent: ET.Element, paint: Paint) -> None:
         _append_alpha(color, paint.fill_alpha)
 
     if paint.stroke == "none":
-        ln = ET.SubElement(parent, qn(NS_A, "ln"))
+        attrs = {}
+        if paint.stroke_width is not None:
+            attrs["w"] = str(_emu(max(0.0, paint.stroke_width)))
+        ln = ET.SubElement(parent, qn(NS_A, "ln"), attrs)
         ET.SubElement(ln, qn(NS_A, "noFill"))
     elif paint.stroke or paint.stroke_width:
         attrs = {}

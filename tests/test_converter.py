@@ -470,6 +470,17 @@ def test_round_rect_and_stroke_style_convert() -> None:
     assert 'stroke-dasharray="8 4"' in svg
 
 
+def test_zero_stroke_width_is_converted_as_no_line() -> None:
+    dml = svg_to_drawingml('<svg><rect width="10" height="8" fill="#ffffff" stroke="#111111" stroke-width="0"/></svg>')
+
+    assert 'val="111111"' not in dml
+    assert "<a:noFill/>" in dml
+
+    svg = drawingml_to_svg(dml)
+    assert 'stroke="none"' in svg
+    assert 'stroke-width="0"' in svg
+
+
 def test_pt_units_are_converted_to_px() -> None:
     dml = svg_to_drawingml(
         '<svg><text x="0" y="20" font-size="12pt" fill="#111111">Pt</text><line x1="0" y1="30" x2="40" y2="30" stroke="#222222" stroke-width="1.5pt" stroke-dasharray="6pt 3pt"/></svg>'
