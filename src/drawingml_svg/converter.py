@@ -1110,10 +1110,29 @@ def _dml_percentage(value: str | None, default: int) -> float:
         return default / 100000
 
 
+def _dml_int(value: str | None, default: int | None = None) -> int | None:
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
+def _dml_float(value: str | None, default: float | None = None) -> float | None:
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        return default
+
+
 def _dml_alpha(parent: ET.Element) -> float | None:
     alpha = parent.find(f".//{qn(NS_A, 'alpha')}")
     if alpha is not None and alpha.get("val"):
-        return int(alpha.get("val", "100000")) / 100000
+        value = _dml_int(alpha.get("val"))
+        return value / 100000 if value is not None else None
     return None
 
 
@@ -1121,16 +1140,15 @@ def _dml_blip_alpha(blip: ET.Element) -> float | None:
     alpha_mod_fix = blip.find(qn(NS_A, "alphaModFix"))
     if alpha_mod_fix is None or alpha_mod_fix.get("amt") is None:
         return None
-    try:
-        return int(alpha_mod_fix.get("amt", "100000")) / 100000
-    except ValueError:
-        return None
+    value = _dml_int(alpha_mod_fix.get("amt"))
+    return value / 100000 if value is not None else None
 
 
 def _dml_line_width(ln: ET.Element | None) -> float | None:
     if ln is None or ln.get("w") is None:
         return None
-    return _px(int(ln.get("w", "0")))
+    value = _dml_int(ln.get("w"))
+    return _px(value) if value is not None else None
 
 
 def _dml_line_color(ln: ET.Element | None) -> str | None:
@@ -1204,7 +1222,8 @@ def _dml_miterlimit(ln: ET.Element) -> float | None:
     miter = ln.find(qn(NS_A, "miter"))
     if miter is None or miter.get("lim") is None:
         return None
-    return int(miter.get("lim", "0")) / 100000
+    value = _dml_int(miter.get("lim"))
+    return value / 100000 if value is not None else None
 
 
 def _append_dml_dash(ln: ET.Element, value: str | None, stroke_width: float | None = None) -> None:
@@ -1318,12 +1337,15 @@ def _svg_dasharray_to_dml(value: str) -> str | None:
 def _dml_dasharray(ln: ET.Element) -> str | None:
     custom = ln.find(qn(NS_A, "custDash"))
     if custom is not None:
-        width = _px(int(ln.get("w", "0"))) if ln.get("w") else None
+        raw_width = _dml_int(ln.get("w"))
+        width = _px(raw_width) if raw_width is not None else None
         if width:
             values = []
             for item in custom.findall(qn(NS_A, "ds")):
-                values.append(_fmt(int(item.get("d", "0")) / 100000 * width))
-                values.append(_fmt(int(item.get("sp", "0")) / 100000 * width))
+                dash = _dml_int(item.get("d"), 0)
+                space = _dml_int(item.get("sp"), 0)
+                values.append(_fmt((dash or 0) / 100000 * width))
+                values.append(_fmt((space or 0) / 100000 * width))
             return " ".join(values) or None
     dash = ln.find(qn(NS_A, "prstDash"))
     if dash is None:
@@ -1810,11 +1832,12 @@ def _dml_xfrm(xfrm: ET.Element | None) -> tuple[float, float, float, float, bool
         return 0.0, 0.0, 0.0, 0.0, False, False, None
     off = xfrm.find(qn(NS_A, "off"))
     ext = xfrm.find(qn(NS_A, "ext"))
-    x = _px(int(off.get("x", "0"))) if off is not None else 0.0
-    y = _px(int(off.get("y", "0"))) if off is not None else 0.0
-    width = _px(int(ext.get("cx", "0"))) if ext is not None else 0.0
-    height = _px(int(ext.get("cy", "0"))) if ext is not None else 0.0
-    rotation = float(xfrm.get("rot", "0")) / 60000 if xfrm.get("rot") is not None else None
+    x = _px(_dml_int(off.get("x"), 0) or 0) if off is not None else 0.0
+    y = _px(_dml_int(off.get("y"), 0) or 0) if off is not None else 0.0
+    width = _px(_dml_int(ext.get("cx"), 0) or 0) if ext is not None else 0.0
+    height = _px(_dml_int(ext.get("cy"), 0) or 0) if ext is not None else 0.0
+    rotation_value = _dml_float(xfrm.get("rot")) if xfrm.get("rot") is not None else None
+    rotation = rotation_value / 60000 if rotation_value is not None else None
     return x, y, width, height, xfrm.get("flipH") in {"1", "true"}, xfrm.get("flipV") in {"1", "true"}, rotation
 
 

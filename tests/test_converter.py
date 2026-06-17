@@ -1330,6 +1330,34 @@ def test_drawingml_srgb_color_luminance_modifiers_round_trip_to_svg_hex_colors()
     assert 'stroke="#666666"' in svg
 
 
+def test_drawingml_invalid_numeric_paint_and_transform_values_do_not_crash() -> None:
+    dml = """<p:spTree xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
+      xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="2" name="line"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm rot="bad"><a:off x="bad" y="95250"/><a:ext cx="bad" cy="0"/></a:xfrm>
+          <a:prstGeom prst="line"><a:avLst/></a:prstGeom>
+          <a:ln w="bad">
+            <a:solidFill><a:srgbClr val="111111"><a:alpha val="bad"/></a:srgbClr></a:solidFill>
+            <a:custDash><a:ds d="bad" sp="100000"/></a:custDash>
+            <a:miter lim="bad"/>
+          </a:ln>
+        </p:spPr>
+      </p:sp>
+    </p:spTree>"""
+
+    svg = drawingml_to_svg(dml)
+
+    assert "<line" in svg
+    assert 'stroke="#111111"' in svg
+    assert "stroke-opacity" not in svg
+    assert "stroke-width" not in svg
+    assert "stroke-dasharray" not in svg
+    assert "stroke-miterlimit" not in svg
+    assert "transform=" not in svg
+
+
 def test_text_stroke_width_scales_with_transform() -> None:
     svg = '<svg><text x="0" y="10" fill="#111111" stroke="#ffffff" stroke-width="2" transform="scale(2)">Outlined</text></svg>'
 
