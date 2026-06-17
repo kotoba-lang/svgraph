@@ -1531,6 +1531,37 @@ def _transformed_axis_aligned_rect_shape(
     )
 
 
+def _transformed_axis_aligned_ellipse_shape(
+    cx: float,
+    cy: float,
+    rx: float,
+    ry: float,
+    matrix: tuple[float, float, float, float, float, float],
+    paint: Paint,
+) -> Shape | None:
+    left = _apply_matrix(matrix, (cx - rx, cy))
+    right = _apply_matrix(matrix, (cx + rx, cy))
+    top = _apply_matrix(matrix, (cx, cy - ry))
+    bottom = _apply_matrix(matrix, (cx, cy + ry))
+    center = _apply_matrix(matrix, (cx, cy))
+    horizontal = (right[0] - left[0], right[1] - left[1])
+    vertical = (bottom[0] - top[0], bottom[1] - top[1])
+    if abs(horizontal[1]) > 1e-9 or abs(vertical[0]) > 1e-9:
+        return None
+    transformed_width = abs(horizontal[0])
+    transformed_height = abs(vertical[1])
+    if transformed_width <= 0 or transformed_height <= 0:
+        return None
+    return Shape(
+        "ellipse",
+        center[0] - transformed_width / 2,
+        center[1] - transformed_height / 2,
+        transformed_width,
+        transformed_height,
+        paint,
+    )
+
+
 def _svg_paint_attrs(paint: Paint) -> dict[str, str]:
     attrs: dict[str, str] = {}
     if paint.fill:
@@ -2474,8 +2505,9 @@ def _ellipse_shape(
     paint: Paint,
     matrix: tuple[float, float, float, float, float, float],
 ) -> Shape:
-    if _is_identity_matrix(matrix):
-        return Shape("ellipse", cx - rx, cy - ry, rx * 2, ry * 2, paint)
+    shape = _transformed_axis_aligned_ellipse_shape(cx, cy, rx, ry, matrix, paint)
+    if shape is not None:
+        return shape
     points = [
         _apply_matrix(matrix, (cx + math.cos(index / 32 * math.tau) * rx, cy + math.sin(index / 32 * math.tau) * ry))
         for index in range(32)

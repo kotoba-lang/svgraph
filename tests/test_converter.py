@@ -868,6 +868,28 @@ def test_scaled_rounded_rect_stays_as_editable_round_rect() -> None:
     assert analyze_svg('<svg><g transform="scale(2)"><rect width="10" height="8"/></g></svg>').estimated_element_coverage == 1.0
 
 
+def test_scaled_circle_and_ellipse_stay_as_editable_ellipses() -> None:
+    dml = svg_to_drawingml(
+        """<svg>
+          <g transform="translate(10 20) scale(2 3)">
+            <circle cx="5" cy="4" r="3" fill="#22c55e"/>
+            <ellipse cx="15" cy="8" rx="4" ry="2" fill="#3b82f6"/>
+          </g>
+        </svg>"""
+    )
+
+    root = ET.fromstring(dml)
+    offsets = root.findall(".//{http://schemas.openxmlformats.org/drawingml/2006/main}off")
+    extents = root.findall(".//{http://schemas.openxmlformats.org/drawingml/2006/main}ext")
+    assert dml.count('prst="ellipse"') == 2
+    assert "<a:custGeom>" not in dml
+    assert offsets[1].attrib == {"x": "133350", "y": "219075"}
+    assert extents[1].attrib == {"cx": "114300", "cy": "171450"}
+    assert offsets[2].attrib == {"x": "304800", "y": "361950"}
+    assert extents[2].attrib == {"cx": "152400", "cy": "114300"}
+    assert analyze_svg('<svg><g transform="scale(2 3)"><circle cx="5" cy="4" r="3"/></g></svg>').estimated_element_coverage == 1.0
+
+
 def test_percent_lengths_resolve_against_root_viewport() -> None:
     dml = svg_to_drawingml(
         '<svg viewBox="0 0 200 100" width="400" height="200"><rect x="10%" y="20%" width="25%" height="40%"/><line x1="0%" y1="100%" x2="50%" y2="0%" stroke="#111111"/></svg>'
@@ -897,6 +919,8 @@ def test_symbol_use_viewbox_width_height_scales_referenced_shapes_with_none() ->
     root = ET.fromstring(dml)
     shape_off = root.findall(".//{http://schemas.openxmlformats.org/drawingml/2006/main}off")[1]
     shape_ext = root.findall(".//{http://schemas.openxmlformats.org/drawingml/2006/main}ext")[1]
+    assert 'prst="ellipse"' in dml
+    assert "<a:custGeom>" not in dml
     assert shape_off.attrib == {"x": "190500", "y": "285750"}
     assert shape_ext.attrib == {"cx": "381000", "cy": "190500"}
     assert 'val="2563EB"' in dml
