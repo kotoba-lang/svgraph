@@ -2388,6 +2388,19 @@ def test_round_rect_and_stroke_style_convert() -> None:
     assert 'stroke-dasharray="8 4"' in svg
 
 
+def test_stroke_linecap_and_linejoin_values_are_normalized() -> None:
+    source = '<svg><polyline points="0,0 20,0 20,12" fill="none" stroke="#111111" stroke-width="2" stroke-linecap=" ROUND " stroke-linejoin=" BEVEL "/></svg>'
+    dml = svg_to_drawingml(source)
+
+    assert 'cap="rnd"' in dml
+    assert "<a:bevel/>" in dml
+    assert analyze_svg(source).unsupported_attributes == {}
+
+    svg = drawingml_to_svg(dml)
+    assert 'stroke-linecap="round"' in svg
+    assert 'stroke-linejoin="bevel"' in svg
+
+
 def test_dash_offset_inside_dash_is_approximated_with_shifted_custom_dash() -> None:
     source = '<svg><line x1="0" y1="0" x2="40" y2="0" stroke="#111111" stroke-width="2" stroke-dasharray="8 4" stroke-dashoffset="2"/></svg>'
     dml = svg_to_drawingml(source)

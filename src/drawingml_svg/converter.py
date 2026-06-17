@@ -776,10 +776,10 @@ def _svg_paint(
         stroke = "none"
     if stroke not in {None, "none"} and parsed_stroke_width is None:
         parsed_stroke_width = 1.0
-    stroke_linecap = style.get("stroke-linecap")
+    stroke_linecap = _svg_linecap(style.get("stroke-linecap"))
     if stroke not in {None, "none"} and not stroke_linecap:
         stroke_linecap = "butt"
-    stroke_linejoin = style.get("stroke-linejoin")
+    stroke_linejoin = _svg_linejoin(style.get("stroke-linejoin"))
     if stroke not in {None, "none"} and not stroke_linejoin:
         stroke_linejoin = "miter"
     stroke_miterlimit = _optional_num(style.get("stroke-miterlimit"))
@@ -1206,6 +1206,16 @@ def _append_alpha(color: ET.Element, alpha: float | None) -> None:
 
 def _svg_linecap_to_dml(value: str) -> str:
     return {"butt": "flat", "round": "rnd", "square": "sq"}.get(value, "flat")
+
+
+def _svg_linecap(value: str | None) -> str | None:
+    normalized = value.strip().lower() if value is not None else ""
+    return normalized if normalized in {"butt", "round", "square"} else None
+
+
+def _svg_linejoin(value: str | None) -> str | None:
+    normalized = value.strip().lower() if value is not None else ""
+    return normalized if normalized in {"bevel", "miter", "round"} else None
 
 
 def _dml_linecap(value: str | None) -> str | None:
