@@ -2807,6 +2807,31 @@ def test_font_presentation_attribute_expands_and_inherits() -> None:
     assert analyze_svg(svg).unsupported_attributes == {}
 
 
+def test_relative_font_sizes_resolve_against_inherited_font_size() -> None:
+    svg = """<svg>
+      <style>
+        :root { --caption-size: 75%; }
+        g { font-size: 20px; fill: #111111; }
+        text.em { font-size: 1.5em; }
+        text.percent { font-size: 150%; }
+        text.rem { font-size: 1.25rem; }
+        text.var { font-size: var(--caption-size); }
+      </style>
+      <g>
+        <text class="em" x="0" y="20">Em</text>
+        <text class="percent" x="0" y="56">Percent</text>
+        <text class="rem" x="0" y="92">Rem</text>
+        <text class="var" x="0" y="128">Var</text>
+      </g>
+    </svg>"""
+    dml = svg_to_drawingml(svg)
+
+    assert dml.count('sz="3000"') == 2
+    assert 'sz="2000"' in dml
+    assert 'sz="1500"' in dml
+    assert analyze_svg(svg).unsupported_attributes == {}
+
+
 def test_drawingml_multiple_text_paragraphs_round_trip_to_svg_lines() -> None:
     dml = """<p:spTree xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
       xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">

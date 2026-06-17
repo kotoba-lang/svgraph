@@ -2598,6 +2598,8 @@ def _computed_style(
             style.pop(key)
     for key, value in tuple(style.items()):
         style[key] = _resolve_css_vars(value, style)
+    if style.get("font-size") is not None:
+        style["font-size"] = _resolve_font_size_value(style.get("font-size"), inherited.get("font-size"))
     if style.get("fill", "").strip().lower() == "currentcolor":
         style["fill"] = style.get("color", "#000000")
     if style.get("stroke", "").strip().lower() == "currentcolor":
@@ -2612,6 +2614,24 @@ def _previous_element_siblings(parent: ET.Element, element: ET.Element) -> tuple
             break
         siblings.append(child)
     return tuple(siblings)
+
+
+def _resolve_font_size_value(value: str | None, inherited_value: str | None) -> str:
+    if value is None:
+        return "16"
+    stripped = value.strip()
+    lower = stripped.lower()
+    inherited_size = _svg_font_size(inherited_value)
+    try:
+        if lower.endswith("%"):
+            return _fmt(_finite_float(lower[:-1]) / 100 * inherited_size)
+        if lower.endswith("rem"):
+            return _fmt(_finite_float(lower[:-3]) * 16)
+        if lower.endswith("em"):
+            return _fmt(_finite_float(lower[:-2]) * inherited_size)
+    except ValueError:
+        return stripped
+    return stripped
 
 
 def _is_hidden(style: dict[str, str]) -> bool:
