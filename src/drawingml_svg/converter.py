@@ -433,11 +433,14 @@ def _svg_foreign_object_table_shapes(
         return ()
     scale_x = transformed.width / width
     scale_y = transformed.height / height
-    row_heights = _html_table_row_heights(table, len(rows), height)
+    table_width = _html_table_element_size(table, "width", width) or width
+    table_height = _html_table_element_size(table, "height", height) or height
+    table_x = _html_table_x_offset(table, width, table_width)
+    row_heights = _html_table_row_heights(table, len(rows), table_height)
     row_edges = [0.0]
     for row_height in row_heights:
         row_edges.append(row_edges[-1] + row_height)
-    column_widths = _html_table_column_widths(table, column_count, width)
+    column_widths = _html_table_column_widths(table, column_count, table_width)
     column_edges = [0.0]
     for column_width in column_widths:
         column_edges.append(column_edges[-1] + column_width)
@@ -446,7 +449,7 @@ def _svg_foreign_object_table_shapes(
         for column_index, cell, column_span, row_span in row:
             end_column = min(column_count, column_index + column_span)
             end_row = min(len(rows), row_index + row_span)
-            cell_x = transformed.x + column_edges[column_index] * scale_x
+            cell_x = transformed.x + (table_x + column_edges[column_index]) * scale_x
             cell_y = transformed.y + row_edges[row_index] * scale_y
             cell_width = (column_edges[end_column] - column_edges[column_index]) * scale_x
             cell_height = (row_edges[end_row] - row_edges[row_index]) * scale_y
@@ -763,6 +766,31 @@ def _html_table_column_widths(table: ET.Element, column_count: int, total_width:
     if not specs:
         specs = _html_table_first_row_column_widths(table, column_count, total_width)
     return _html_table_sizes(specs, column_count, total_width)
+
+
+def _html_table_element_size(table: ET.Element, axis: str, total_size: float) -> float | None:
+    style_size = _parse_style(table.get("style", "")).get(axis)
+    size = _html_table_size_value(style_size, total_size)
+    if size is not None:
+        return size
+    return _html_table_size_value(table.get(axis), total_size)
+
+
+def _html_table_x_offset(table: ET.Element, foreign_object_width: float, table_width: float) -> float:
+    extra = max(0.0, foreign_object_width - table_width)
+    style = _parse_style(table.get("style", ""))
+    margin_left = (style.get("margin-left") or "").strip().lower()
+    margin_right = (style.get("margin-right") or "").strip().lower()
+    if margin_left == "auto" and margin_right == "auto":
+        return extra / 2
+    if margin_left == "auto":
+        return extra
+    align = (style.get("text-align") or table.get("align") or "").strip().lower()
+    if align in {"center", "middle"}:
+        return extra / 2
+    if align in {"right", "end"}:
+        return extra
+    return 0.0
 
 
 def _html_table_first_row_column_widths(table: ET.Element, column_count: int, total_width: float) -> list[float | None]:
