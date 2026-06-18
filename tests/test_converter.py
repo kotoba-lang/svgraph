@@ -8337,6 +8337,47 @@ def test_drawingml_native_table_cell_list_style_alignment_maps_to_svg_text_ancho
     assert '<text fill="#000000" stroke="none" x="80" y="10" font-size="10" text-anchor="end" dominant-baseline="middle">Right</text>' in svg
 
 
+def test_drawingml_native_table_cell_rtl_direction_maps_to_svg_text() -> None:
+    dml = """<p:spTree xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
+      xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+      <p:graphicFrame>
+        <p:xfrm><a:off x="0" y="0"/><a:ext cx="762000" cy="190500"/></p:xfrm>
+        <a:graphic><a:graphicData>
+          <a:tbl>
+            <a:tblGrid><a:gridCol w="381000"/><a:gridCol w="381000"/></a:tblGrid>
+            <a:tr h="190500">
+              <a:tc>
+                <a:txBody>
+                  <a:bodyPr/>
+                  <a:lstStyle/>
+                  <a:p><a:pPr rtl="1"/><a:r><a:rPr sz="1000"/><a:t>Direct</a:t></a:r></a:p>
+                </a:txBody>
+                <a:tcPr/>
+              </a:tc>
+              <a:tc>
+                <a:txBody>
+                  <a:bodyPr/>
+                  <a:lstStyle><a:lvl1pPr rtl="1"/></a:lstStyle>
+                  <a:p><a:r><a:rPr sz="1000"/><a:t>Fallback</a:t></a:r></a:p>
+                </a:txBody>
+                <a:tcPr/>
+              </a:tc>
+            </a:tr>
+          </a:tbl>
+        </a:graphicData></a:graphic>
+      </p:graphicFrame>
+    </p:spTree>"""
+
+    svg = drawingml_to_svg(dml)
+
+    texts = {
+        element.text: element.attrib
+        for element in ET.fromstring(svg).findall("{http://www.w3.org/2000/svg}text")
+    }
+    assert texts["Direct"]["direction"] == "rtl"
+    assert texts["Fallback"]["direction"] == "rtl"
+
+
 def test_drawingml_native_table_cell_list_style_default_run_styles_apply_to_text() -> None:
     dml = """<p:spTree xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
       xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">

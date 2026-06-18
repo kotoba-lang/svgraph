@@ -994,6 +994,7 @@ def _dml_table_shapes(element: ET.Element) -> Iterable[Shape]:
                         text_decoration=_dml_text_decoration_from_properties(text_properties),
                         text_decoration_style=_dml_text_decoration_style_from_properties(text_properties),
                         text_anchor=_dml_table_cell_text_anchor(cell),
+                        text_direction=_dml_table_cell_text_direction(cell),
                         text_baseline=_dml_table_cell_text_baseline(cell) or "middle",
                         text_baseline_shift=_dml_text_baseline_shift_from_properties(text_properties),
                         letter_spacing=_dml_letter_spacing_from_properties(text_properties),
@@ -1147,6 +1148,13 @@ def _dml_table_cell_text_anchor(cell: ET.Element) -> str | None:
     if p_pr is None:
         return None
     return {"ctr": "middle", "r": "end", "l": "start"}.get(p_pr.get("algn", ""))
+
+
+def _dml_table_cell_text_direction(cell: ET.Element) -> str | None:
+    p_pr = _dml_table_cell_paragraph_properties(cell, lambda item: item.get("rtl") is not None)
+    if p_pr is None:
+        return None
+    return "rtl" if p_pr.get("rtl") in {"1", "true"} else None
 
 
 def _dml_table_cell_paragraph_properties(

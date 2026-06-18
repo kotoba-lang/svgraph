@@ -24,6 +24,7 @@ This project follows a simple, human-readable changelog. Until the project reach
 - Added simple SVG `foreignObject` HTML table font-variant and letter-spacing text conversion.
 - Added simple SVG text `direction="rtl"` conversion to DrawingML paragraph direction.
 - Added simple SVG `foreignObject` HTML table cell RTL text direction conversion.
+- Added DrawingML native table cell RTL paragraph direction extraction.
 - Added DrawingML table cell text inset handling from `bodyPr` `lIns`/`rIns`/`tIns`/`bIns`.
 - Added DrawingML table cell text vertical anchor extraction from `bodyPr` `anchor`.
 - Added DrawingML table cell list-style paragraph alignment fallback.
