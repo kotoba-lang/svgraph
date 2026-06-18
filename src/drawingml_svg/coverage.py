@@ -116,11 +116,13 @@ UNSUPPORTED_ATTRIBUTES = {
     "text-decoration",
     "text-decoration-color",
     "text-decoration-line",
+    "text-decoration-skip-ink",
     "text-decoration-style",
     "text-decoration-thickness",
     "text-orientation",
     "text-rendering",
     "text-transform",
+    "text-underline-offset",
     "transform-origin",
     "unicode-bidi",
     "vector-effect",
@@ -386,6 +388,8 @@ def _inspect_attributes(
             continue
         if attr == "text-decoration-line" and _text_decoration_line_is_supported_or_noop(specified_style):
             continue
+        if attr == "text-decoration-skip-ink" and _text_decoration_skip_ink_has_no_effect(specified_style):
+            continue
         if attr == "text-decoration-color" and _text_decoration_color_has_no_effect(
             style, refs, css, viewport
         ):
@@ -397,6 +401,8 @@ def _inspect_attributes(
         if attr == "text-orientation" and _text_orientation_has_no_effect(specified_style):
             continue
         if attr == "text-transform" and _text_transform_is_supported(element, specified_style):
+            continue
+        if attr == "text-underline-offset" and _text_underline_offset_has_no_effect(specified_style):
             continue
         if attr == "transform-origin" and _transform_origin_is_supported(element, specified_style, viewport):
             continue
@@ -880,6 +886,20 @@ def _text_decoration_thickness_has_no_effect(style: dict[str, str]) -> bool:
     return not _has_visible_text_decoration(style) or value.strip().lower() in {"", "auto"}
 
 
+def _text_decoration_skip_ink_has_no_effect(style: dict[str, str]) -> bool:
+    value = style.get("text-decoration-skip-ink")
+    if value is None:
+        return False
+    return not _has_visible_underline(style) or value.strip().lower() in {"", "auto"}
+
+
+def _text_underline_offset_has_no_effect(style: dict[str, str]) -> bool:
+    value = style.get("text-underline-offset")
+    if value is None:
+        return False
+    return not _has_visible_underline(style) or value.strip().lower() in {"", "auto"}
+
+
 def _text_decoration_shorthand_is_supported_or_noop(
     style: dict[str, str],
     refs: dict[str, ET.Element],
@@ -980,6 +1000,13 @@ def _has_only_visible_underline(style: dict[str, str]) -> bool:
         return False
     tokens = {token for token in _text_decoration_tokens(value) if token in TEXT_DECORATION_LINE_TOKENS - {"none"}}
     return "underline" in tokens and "line-through" not in tokens
+
+
+def _has_visible_underline(style: dict[str, str]) -> bool:
+    value = style.get("text-decoration-line", style.get("text-decoration"))
+    if value is None:
+        return False
+    return "underline" in _text_decoration_tokens(value)
 
 
 def _text_decoration_tokens(value: str) -> list[str]:

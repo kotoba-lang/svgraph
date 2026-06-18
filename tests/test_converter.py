@@ -1441,6 +1441,29 @@ def test_text_decoration_thickness_is_reported_when_visible() -> None:
     assert analyze_svg(svg).unsupported_attributes == {"text-decoration-thickness": 2}
 
 
+def test_underline_offset_and_skip_ink_are_reported_when_visible() -> None:
+    svg = """<svg>
+      <style>
+        .offset { text-underline-offset: .2em; }
+        .skip { text-decoration-skip-ink: none; }
+      </style>
+      <text x="0" y="20" text-decoration-line="underline" text-underline-offset="3px">Offset</text>
+      <text x="0" y="40" text-decoration-line="underline" text-decoration-skip-ink="all">Skip</text>
+      <text class="offset" x="0" y="60" text-decoration-line="underline">CSS offset</text>
+      <text class="skip" x="0" y="80" text-decoration-line="underline">CSS skip</text>
+      <text x="0" y="100" text-decoration-line="line-through" text-underline-offset="3px"
+        text-decoration-skip-ink="none">Strike only</text>
+      <text x="0" y="120" text-underline-offset="3px" text-decoration-skip-ink="none">No decoration</text>
+      <text x="0" y="140" text-decoration-line="underline" text-underline-offset="auto"
+        text-decoration-skip-ink="auto">Auto</text>
+    </svg>"""
+
+    assert analyze_svg(svg).unsupported_attributes == {
+        "text-decoration-skip-ink": 2,
+        "text-underline-offset": 2,
+    }
+
+
 def test_text_decoration_color_is_reported_when_same_rgb_has_different_alpha() -> None:
     svg = '<svg><text x="0" y="20" fill="#111111" fill-opacity=".5" text-decoration-line="underline" text-decoration-color="#111111">Dim</text></svg>'
 
