@@ -996,10 +996,13 @@ def _font_family(value: str | None) -> str | None:
 def _dml_paint(sp_pr: ET.Element) -> Paint:
     fill = None
     solid_fill = sp_pr.find(qn(NS_A, "solidFill"))
+    grad_fill = sp_pr.find(qn(NS_A, "gradFill"))
     no_fill = sp_pr.find(qn(NS_A, "noFill"))
     if solid_fill is not None:
         fill = _dml_color(solid_fill)
         fill_alpha = _dml_alpha(solid_fill)
+    elif grad_fill is not None:
+        fill, fill_alpha = _dml_gradient_fill(grad_fill)
     elif no_fill is not None:
         fill = "none"
         fill_alpha = None
@@ -1067,6 +1070,9 @@ def _dml_text_fill(r_pr: ET.Element | None, shape_paint: Paint) -> tuple[str | N
     solid_fill = r_pr.find(qn(NS_A, "solidFill"))
     if solid_fill is not None:
         return _dml_color(solid_fill), _dml_alpha(solid_fill)
+    grad_fill = r_pr.find(qn(NS_A, "gradFill"))
+    if grad_fill is not None:
+        return _dml_gradient_fill(grad_fill)
     return shape_paint.fill, shape_paint.fill_alpha
 
 
@@ -1199,6 +1205,22 @@ def _dml_color(parent: ET.Element) -> str | None:
     if preset is not None and preset.get("val"):
         return _dml_preset_color(preset)
     return None
+
+
+def _dml_gradient_fill(element: ET.Element) -> tuple[str | None, float | None]:
+    stops = []
+    for stop in element.findall(f"{qn(NS_A, 'gsLst')}/{qn(NS_A, 'gs')}"):
+        color = _dml_color(stop)
+        rgb = _hex_to_rgb(color or "")
+        if rgb is not None:
+            alpha = _dml_alpha(stop)
+            stops.append((*rgb, 1.0 if alpha is None else alpha))
+    if not stops:
+        return None, None
+    count = len(stops)
+    rgb_avg = tuple(round(sum(stop[index] for stop in stops) / count) for index in range(3))
+    alpha_avg = sum(stop[3] for stop in stops) / count
+    return _rgb_to_hex(rgb_avg), alpha_avg if alpha_avg < 1 else None
 
 
 def _dml_scrgb_color(element: ET.Element) -> str | None:
@@ -1492,6 +1514,9 @@ def _dml_line_color(ln: ET.Element | None) -> str | None:
     solid_line = ln.find(qn(NS_A, "solidFill"))
     if solid_line is not None:
         return _dml_color(solid_line)
+    grad_line = ln.find(qn(NS_A, "gradFill"))
+    if grad_line is not None:
+        return _dml_gradient_fill(grad_line)[0]
     return None
 
 
@@ -1501,6 +1526,9 @@ def _dml_line_alpha(ln: ET.Element | None) -> float | None:
     solid_line = ln.find(qn(NS_A, "solidFill"))
     if solid_line is not None:
         return _dml_alpha(solid_line)
+    grad_line = ln.find(qn(NS_A, "gradFill"))
+    if grad_line is not None:
+        return _dml_gradient_fill(grad_line)[1]
     return None
 
 
