@@ -2679,6 +2679,28 @@ def test_supported_underline_styles_map_to_drawingml_underline_values() -> None:
     assert 'text-decoration-style="wavy"' in round_trip
 
 
+def test_text_decoration_color_maps_to_drawingml_underline_fill() -> None:
+    svg = """<svg>
+      <text x="0" y="20" fill="#111111" text-decoration-line="underline" text-decoration-color="#dc2626">Color</text>
+      <text x="0" y="40" color="#2563eb" fill="currentColor" text-decoration="underline dotted currentColor">Current</text>
+      <text x="0" y="60" fill="#111111" text-decoration="underline dotted rgb(22 163 74 / 50%)">Alpha</text>
+    </svg>"""
+
+    dml = svg_to_drawingml(svg)
+    root = ET.fromstring(dml)
+    ns = {"a": "http://schemas.openxmlformats.org/drawingml/2006/main"}
+    colors = root.findall(".//a:rPr/a:uFill/a:solidFill/a:srgbClr", ns)
+
+    assert [color.get("val") for color in colors] == ["DC2626", "2563EB", "16A34A"]
+    assert colors[2].find("a:alpha", ns).get("val") == "50000"
+    assert analyze_svg(svg).unsupported_attributes == {}
+
+    round_trip = drawingml_to_svg(dml)
+    assert 'text-decoration-color="#dc2626"' in round_trip
+    assert 'text-decoration-color="#2563eb"' in round_trip
+    assert 'text-decoration-color="#16a34a80"' in round_trip
+
+
 def test_text_decoration_color_and_non_solid_style_are_reported_when_visible() -> None:
     svg = """<svg>
       <text x="0" y="20" text-decoration-line="underline" text-decoration-color="#dc2626">Color</text>
@@ -2699,8 +2721,7 @@ def test_text_decoration_color_and_non_solid_style_are_reported_when_visible() -
     </svg>"""
 
     assert analyze_svg(svg).unsupported_attributes == {
-        "text-decoration-color": 1,
-        "text-decoration": 3,
+        "text-decoration": 1,
         "text-decoration-style": 2,
     }
 
@@ -2727,7 +2748,6 @@ def test_analyze_svg_reports_inherited_text_decoration_with_visible_text() -> No
     </svg>"""
 
     assert analyze_svg(svg).unsupported_attributes == {
-        "text-decoration-color": 1,
         "text-decoration-line": 1,
         "text-decoration-thickness": 1,
     }
@@ -2749,7 +2769,6 @@ def test_analyze_svg_reports_inherited_text_decoration_on_use_visible_text() -> 
 
     assert analyze_svg(svg).unsupported_attributes == {
         "href": 1,
-        "text-decoration-color": 1,
         "text-decoration-line": 1,
         "text-decoration-thickness": 1,
     }
@@ -2811,7 +2830,7 @@ def test_underline_offset_and_skip_ink_are_reported_when_visible() -> None:
 def test_text_decoration_color_is_reported_when_same_rgb_has_different_alpha() -> None:
     svg = '<svg><text x="0" y="20" fill="#111111" fill-opacity=".5" text-decoration-line="underline" text-decoration-color="#111111">Dim</text></svg>'
 
-    assert analyze_svg(svg).unsupported_attributes == {"text-decoration-color": 1}
+    assert analyze_svg(svg).unsupported_attributes == {}
 
 
 def test_unsupported_text_decoration_tokens_are_reported() -> None:

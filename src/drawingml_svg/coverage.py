@@ -2019,6 +2019,10 @@ def _text_decoration_color_has_no_effect(
     value = style.get("text-decoration-color")
     if value is None:
         return False
+    if _has_only_visible_underline(style):
+        color_value = style.get("color", "#000000") if value.strip().lower() == "currentcolor" else value
+        decoration_color, _ = _parse_color(color_value)
+        return decoration_color is not None
     paint = _svg_paint(style, refs, default_fill=True, css=css, viewport=viewport)
     if paint.fill in {None, "none"} or (paint.fill_alpha is not None and paint.fill_alpha < 1):
         return False
@@ -2125,6 +2129,10 @@ def _text_decoration_shorthand_color_has_no_effect(
         return False
     if not _has_visible_text_decoration(style):
         return True
+    if _has_only_visible_underline(style):
+        color_value = style.get("color", "#000000") if color_tokens[0].lower() == "currentcolor" else color_tokens[0]
+        decoration_color, _ = _parse_color(color_value)
+        return decoration_color is not None
     paint = _svg_paint(style, refs, default_fill=True, css=css, viewport=viewport)
     if paint.fill in {None, "none"} or (paint.fill_alpha is not None and paint.fill_alpha < 1):
         return False
