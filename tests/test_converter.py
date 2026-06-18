@@ -1066,6 +1066,64 @@ def test_foreign_object_html_table_converts_to_native_drawingml_table() -> None:
     assert analyze_svg(svg).unsupported_elements == {}
 
 
+def test_foreign_object_html_table_spans_convert_to_native_table_merges() -> None:
+    svg = """<svg width="120" height="60">
+      <foreignObject x="10" y="8" width="100" height="40">
+        <body xmlns="http://www.w3.org/1999/xhtml">
+          <table>
+            <tr>
+              <th colspan="2" style="background-color:#dbeafe;color:#1e3a8a;border:2px solid #2563eb">Header</th>
+            </tr>
+            <tr>
+              <td style="background-color:#ffffff;color:#111827;border:1px solid #94a3b8">A</td>
+              <td style="background-color:#f8fafc;color:#111827;border:1px solid #94a3b8">B</td>
+            </tr>
+          </table>
+        </body>
+      </foreignObject>
+    </svg>"""
+
+    dml = svg_to_drawingml(svg)
+
+    assert "<a:tbl>" in dml
+    assert dml.count("<a:gridCol") == 2
+    assert dml.count("<a:tr") == 2
+    assert 'gridSpan="2"' in dml
+    assert 'hMerge="1"' in dml
+    assert dml.count("<a:txBody>") == 4
+    assert "<a:t>Header</a:t>" in dml
+    assert analyze_svg(svg).unsupported_elements == {}
+
+
+def test_foreign_object_html_table_rowspans_convert_to_native_table_merges() -> None:
+    svg = """<svg width="120" height="60">
+      <foreignObject x="10" y="8" width="100" height="40">
+        <body xmlns="http://www.w3.org/1999/xhtml">
+          <table>
+            <tr>
+              <th rowspan="2" style="background-color:#dcfce7;color:#14532d;border:2px solid #16a34a">Side</th>
+              <td style="background-color:#ffffff;color:#111827;border:1px solid #94a3b8">A</td>
+            </tr>
+            <tr>
+              <td style="background-color:#f8fafc;color:#111827;border:1px solid #94a3b8">B</td>
+            </tr>
+          </table>
+        </body>
+      </foreignObject>
+    </svg>"""
+
+    dml = svg_to_drawingml(svg)
+
+    assert "<a:tbl>" in dml
+    assert dml.count("<a:gridCol") == 2
+    assert dml.count("<a:tr") == 2
+    assert 'rowSpan="2"' in dml
+    assert 'vMerge="1"' in dml
+    assert dml.count("<a:txBody>") == 4
+    assert "<a:t>Side</a:t>" in dml
+    assert analyze_svg(svg).unsupported_elements == {}
+
+
 def test_rotated_foreign_object_html_table_remains_unsupported() -> None:
     svg = """<svg width="120" height="60">
       <foreignObject x="10" y="8" width="100" height="40" transform="rotate(5 60 28)">

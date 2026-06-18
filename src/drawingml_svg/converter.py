@@ -1382,7 +1382,7 @@ def _extract_svg_table(shapes: list[Shape]) -> tuple[SvgTable | None, list[Shape
     rects = [shape for shape in shapes if _svg_table_rect_candidate(shape)]
     if not rects:
         return _extract_svg_line_table(shapes)
-    if len(rects) < 4 or len(rects) != sum(1 for shape in shapes if shape.kind == "rect"):
+    if len(rects) < 2 or len(rects) != sum(1 for shape in shapes if shape.kind == "rect"):
         return None, shapes
 
     x_edges = _svg_table_edges([(rect.x, rect.x + rect.width) for rect in rects])
