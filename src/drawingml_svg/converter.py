@@ -471,6 +471,7 @@ def _svg_foreign_object_table_shapes(
                         font_family=_font_family(cell_style.get("font-family")),
                         text_anchor=_html_text_anchor(cell_style),
                         text_baseline=_html_vertical_align(cell_style) or "middle",
+                        text_runs=_html_table_cell_text_runs(cell, css, cell_style, max(scale_x, scale_y)),
                     )
                 )
     return tuple(shapes)
@@ -508,6 +509,96 @@ def _html_table_cell_text(cell: ET.Element) -> str:
     lines = [" ".join(line.split()) for line in raw.split("\n")]
     lines = [line for line in lines if line]
     return "\n".join(lines)
+
+
+def _html_table_cell_text_runs(
+    cell: ET.Element,
+    css: list[CssRule],
+    inherited_style: dict[str, str],
+    scale: float,
+) -> tuple[TextRun, ...]:
+    runs: list[TextRun] = []
+    _append_html_text_runs(cell, css, inherited_style, (), (), scale, runs, False)
+    if len(runs) <= 1 and not any(run.break_before for run in runs):
+        return ()
+    return tuple(runs)
+
+
+def _append_html_text_runs(
+    element: ET.Element,
+    css: list[CssRule],
+    style: dict[str, str],
+    ancestors: tuple[ET.Element, ...],
+    previous_siblings: tuple[ET.Element, ...],
+    scale: float,
+    runs: list[TextRun],
+    break_before: bool,
+) -> bool:
+    text = _html_text_segment(element.text or "")
+    if text:
+        runs.append(_html_text_run(text, style, scale, break_before))
+        break_before = False
+    previous_children: list[ET.Element] = []
+    for child in element:
+        child_tag = _local_name(child.tag)
+        if child_tag == "br":
+            break_before = True
+        else:
+            child_style = _html_inline_style(child, css, style, ancestors + (element,), tuple(previous_children))
+            if child_tag in {"div", "p", "li"} and runs:
+                break_before = True
+            break_before = _append_html_text_runs(
+                child,
+                css,
+                child_style,
+                ancestors + (element,),
+                tuple(previous_children),
+                scale,
+                runs,
+                break_before,
+            )
+            if child_tag in {"div", "p", "li"}:
+                break_before = True
+        tail = _html_text_segment(child.tail or "")
+        if tail:
+            runs.append(_html_text_run(tail, style, scale, break_before))
+            break_before = False
+        previous_children.append(child)
+    return break_before
+
+
+def _html_inline_style(
+    element: ET.Element,
+    css: list[CssRule],
+    inherited_style: dict[str, str],
+    ancestors: tuple[ET.Element, ...],
+    previous_siblings: tuple[ET.Element, ...],
+) -> dict[str, str]:
+    style = _computed_style(element, css, inherited_style, ancestors, previous_siblings)
+    tag = _local_name(element.tag)
+    if tag in {"b", "strong"} and style.get("font-weight", "normal").strip().lower() == "normal":
+        style["font-weight"] = "bold"
+    if tag in {"i", "em"} and style.get("font-style", "normal").strip().lower() == "normal":
+        style["font-style"] = "italic"
+    return style
+
+
+def _html_text_run(text: str, style: dict[str, str], scale: float, break_before: bool) -> TextRun:
+    return TextRun(
+        text=text,
+        paint=Paint(fill=_html_text_color(style) or "#000000", stroke="none"),
+        break_before=break_before,
+        font_size=_svg_font_size(style.get("font-size")) * scale,
+        font_weight=style.get("font-weight"),
+        font_style=style.get("font-style"),
+        font_family=_font_family(style.get("font-family")),
+        text_decoration=style.get("text-decoration"),
+    )
+
+
+def _html_text_segment(text: str) -> str:
+    normalized = re.sub(r"\s+", " ", text)
+    return normalized if normalized.strip() else ""
 
 
 def _html_text_with_breaks(element: ET.Element) -> str:
