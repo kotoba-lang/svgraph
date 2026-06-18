@@ -6122,6 +6122,43 @@ def test_inherited_group_markers_are_analyzed_on_visible_children() -> None:
     assert analyze_svg(unsupported_mid).unsupported_attributes == {"marker": 1}
 
 
+def test_inherited_group_markers_are_analyzed_on_use_descendants() -> None:
+    svg = """<svg>
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10"><path d="M0 0 L10 5 L0 10 Z"/></marker>
+        <g id="glyph"><line x1="0" y1="0" x2="40" y2="10" stroke="#111111"/></g>
+        <symbol id="icon" viewBox="0 0 40 10">
+          <path d="M0 5 L40 5" fill="none" stroke="#222222"/>
+        </symbol>
+      </defs>
+      <g marker-end="url(#arrow)">
+        <use href="#glyph"/>
+        <use href="#icon" width="40" height="10"/>
+      </g>
+    </svg>"""
+    unsupported_polygon = """<svg>
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10"><path d="M0 0 L10 5 L0 10 Z"/></marker>
+        <g id="glyph"><polygon points="0,0 20,0 10,10" stroke="#111111"/></g>
+      </defs>
+      <g marker-end="url(#arrow)"><use href="#glyph"/></g>
+    </svg>"""
+    unsupported_mid = """<svg>
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10"><path d="M0 0 L10 5 L0 10 Z"/></marker>
+        <g id="glyph"><polyline points="0,0 20,0 20,20" fill="none" stroke="#111111"/></g>
+      </defs>
+      <g marker="url(#arrow)"><use href="#glyph"/></g>
+    </svg>"""
+
+    dml = svg_to_drawingml(svg)
+
+    assert dml.count('<a:headEnd type="triangle"/>') == 2
+    assert analyze_svg(svg).unsupported_attributes == {}
+    assert analyze_svg(unsupported_polygon).unsupported_attributes == {"marker-end": 1}
+    assert analyze_svg(unsupported_mid).unsupported_attributes == {"marker": 1}
+
+
 def test_marker_shorthand_with_midpoints_is_reported_as_unsupported() -> None:
     svg = """<svg>
       <defs><marker id="arrow" viewBox="0 0 10 10"><path d="M0 0 L10 5 L0 10 Z"/></marker></defs>
@@ -6162,6 +6199,24 @@ def test_inherited_marker_mid_without_interior_vertices_is_noop() -> None:
 
     assert analyze_svg(svg).unsupported_attributes == {"marker-mid": 1}
     assert analyze_svg(invisible).unsupported_attributes == {}
+
+
+def test_inherited_marker_mid_without_interior_vertices_is_noop_on_use_descendants() -> None:
+    svg = """<svg>
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10"><path d="M0 0 L10 5 L0 10 Z"/></marker>
+        <g id="line"><line x1="0" y1="0" x2="10" y2="0" stroke="#111111"/></g>
+        <g id="segment"><path d="M0 8 L10 8" fill="none" stroke="#111111"/></g>
+        <g id="corner"><polyline points="0,12 10,12 10,20" fill="none" stroke="#111111"/></g>
+      </defs>
+      <g marker-mid="url(#arrow)">
+        <use href="#line"/>
+        <use href="#segment"/>
+        <use href="#corner"/>
+      </g>
+    </svg>"""
+
+    assert analyze_svg(svg).unsupported_attributes == {"marker-mid": 1}
 
 
 def test_data_uri_image_converts_to_picture_and_round_trips() -> None:

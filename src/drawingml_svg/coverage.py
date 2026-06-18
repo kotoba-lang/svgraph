@@ -1135,11 +1135,27 @@ def _subtree_marker_is_supported(
     ancestors: tuple[ET.Element, ...],
     viewport: tuple[float, float],
     previous_siblings: tuple[ET.Element, ...] = (),
+    ref_stack: frozenset[str] = frozenset(),
 ) -> bool:
     style = _computed_style(element, css, inherited_style, ancestors, previous_siblings)
     if _is_display_none(style):
         return True
     tag = _local_name(element.tag)
+    if tag == "use":
+        ref_context = _use_reference_context(element, refs, viewport, ref_stack)
+        if ref_context is None:
+            return False
+        ref, ref_viewport, next_stack = ref_context
+        return _subtree_marker_is_supported(
+            ref,
+            css,
+            refs,
+            style,
+            ancestors + (element,),
+            ref_viewport,
+            (),
+            next_stack,
+        )
     if (
         not _is_visibility_hidden(style)
         and tag in RENDERING_ELEMENTS
@@ -1166,6 +1182,7 @@ def _subtree_marker_is_supported(
             ancestors + (element,),
             child_viewport,
             _previous_element_siblings(element, selected),
+            ref_stack,
         )
     previous_children: list[ET.Element] = []
     for child in element:
@@ -1177,6 +1194,7 @@ def _subtree_marker_is_supported(
             ancestors + (element,),
             child_viewport,
             tuple(previous_children),
+            ref_stack,
         ):
             return False
         previous_children.append(child)
@@ -1191,11 +1209,27 @@ def _subtree_marker_mid_has_no_effect(
     ancestors: tuple[ET.Element, ...],
     viewport: tuple[float, float],
     previous_siblings: tuple[ET.Element, ...] = (),
+    ref_stack: frozenset[str] = frozenset(),
 ) -> bool:
     style = _computed_style(element, css, inherited_style, ancestors, previous_siblings)
     if _is_display_none(style):
         return True
     tag = _local_name(element.tag)
+    if tag == "use":
+        ref_context = _use_reference_context(element, refs, viewport, ref_stack)
+        if ref_context is None:
+            return False
+        ref, ref_viewport, next_stack = ref_context
+        return _subtree_marker_mid_has_no_effect(
+            ref,
+            css,
+            refs,
+            style,
+            ancestors + (element,),
+            ref_viewport,
+            (),
+            next_stack,
+        )
     if (
         not _is_visibility_hidden(style)
         and tag in RENDERING_ELEMENTS
@@ -1222,6 +1256,7 @@ def _subtree_marker_mid_has_no_effect(
             ancestors + (element,),
             child_viewport,
             _previous_element_siblings(element, selected),
+            ref_stack,
         )
     previous_children: list[ET.Element] = []
     for child in element:
@@ -1233,10 +1268,29 @@ def _subtree_marker_mid_has_no_effect(
             ancestors + (element,),
             child_viewport,
             tuple(previous_children),
+            ref_stack,
         ):
             return False
         previous_children.append(child)
     return True
+
+
+def _use_reference_context(
+    element: ET.Element,
+    refs: dict[str, ET.Element],
+    viewport: tuple[float, float],
+    ref_stack: frozenset[str],
+) -> tuple[ET.Element, tuple[float, float], frozenset[str]] | None:
+    href = _href(element)
+    if not href or not href.startswith("#") or href[1:] not in refs or href[1:] in ref_stack:
+        return None
+    ref = refs[href[1:]]
+    ref_viewport = viewport
+    if _local_name(ref.tag) in {"svg", "symbol"}:
+        use_width = _optional_length(element.get("width"), "x", viewport)
+        use_height = _optional_length(element.get("height"), "y", viewport)
+        ref_viewport = _viewport_size(ref, use_width, use_height)
+    return ref, ref_viewport, ref_stack | frozenset({href[1:]})
 
 
 def _geometry_length(element: ET.Element, style: dict[str, str], attr: str, axis: str, viewport: tuple[float, float]) -> float:
