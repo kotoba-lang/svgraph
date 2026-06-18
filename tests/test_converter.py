@@ -1971,6 +1971,21 @@ def test_absolute_transform_origin_is_applied_to_css_transform() -> None:
     assert analyze_svg(svg).unsupported_attributes == {}
 
 
+def test_percentage_transform_origin_is_applied_to_css_transform() -> None:
+    svg = '<svg><rect x="10" y="12" width="20" height="16" fill="#111111" style="transform-origin: 50% 50%; transform: rotate(90deg)"/></svg>'
+    dml = svg_to_drawingml(svg)
+
+    root = ET.fromstring(dml)
+    shape_off = root.findall(".//{http://schemas.openxmlformats.org/drawingml/2006/main}off")[1]
+    shape_ext = root.findall(".//{http://schemas.openxmlformats.org/drawingml/2006/main}ext")[1]
+    xfrm = root.find(".//{http://schemas.openxmlformats.org/drawingml/2006/main}xfrm[@rot]")
+    assert xfrm is not None
+    assert xfrm.get("rot") == "5400000"
+    assert shape_off.attrib == {"x": "95250", "y": "114300"}
+    assert shape_ext.attrib == {"cx": "190500", "cy": "152400"}
+    assert analyze_svg(svg).unsupported_attributes == {}
+
+
 def test_unsupported_transform_origin_values_are_reported() -> None:
     svg = """<svg>
       <rect width="10" height="8" style="transform-origin: left top; transform: rotate(90deg)"/>
@@ -1978,7 +1993,7 @@ def test_unsupported_transform_origin_values_are_reported() -> None:
       <rect x="24" width="10" height="8" style="transform-origin: 5px 4px 1px; transform: rotate(90deg)"/>
     </svg>"""
 
-    assert analyze_svg(svg).unsupported_attributes == {"transform-origin": 3}
+    assert analyze_svg(svg).unsupported_attributes == {"transform-origin": 2}
 
 
 def test_reflected_rect_stays_as_editable_rect() -> None:

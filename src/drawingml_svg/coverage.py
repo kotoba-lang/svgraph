@@ -235,7 +235,7 @@ def _walk(
     if display_none or non_rendering_geometry or (no_visible_paint and not unresolved_paint_server):
         return
 
-    matrix = _matrix_multiply(inherited_matrix, _style_transform_matrix(style, viewport))
+    matrix = _matrix_multiply(inherited_matrix, _style_transform_matrix(element, style, viewport))
     child_viewport = viewport
     if tag == "svg" and ancestors:
         child_viewport = _viewport_size(
@@ -386,7 +386,7 @@ def _inspect_attributes(
             continue
         if attr == "text-transform" and _text_transform_is_supported(element, specified_style):
             continue
-        if attr == "transform-origin" and _transform_origin_is_supported(specified_style, viewport):
+        if attr == "transform-origin" and _transform_origin_is_supported(element, specified_style, viewport):
             continue
         if attr == "baseline-shift" and (
             _baseline_shift_has_no_effect(specified_style)
@@ -873,11 +873,15 @@ def _has_visible_text_decoration(style: dict[str, str]) -> bool:
     return bool(tokens & {"underline", "line-through"})
 
 
-def _transform_origin_is_supported(style: dict[str, str], viewport: tuple[float, float]) -> bool:
+def _transform_origin_is_supported(
+    element: ET.Element,
+    style: dict[str, str],
+    viewport: tuple[float, float],
+) -> bool:
     value = style.get("transform-origin")
     if value is None:
         return False
-    return _transform_origin(value, viewport) is not None
+    return _transform_origin(value, viewport, element, style) is not None
 
 
 def _letter_spacing_is_supported(style: dict[str, str]) -> bool:

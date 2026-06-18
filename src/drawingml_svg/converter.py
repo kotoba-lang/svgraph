@@ -165,7 +165,7 @@ def _svg_shapes_walk(
     if _is_display_none(style):
         return
     visibility_hidden = _is_visibility_hidden(style)
-    matrix = _matrix_multiply(inherited_matrix, _style_transform_matrix(style, viewport))
+    matrix = _matrix_multiply(inherited_matrix, _style_transform_matrix(element, style, viewport))
     child_viewport = viewport
     if tag == "svg" and ancestors:
         svg_width = _optional_length(element.get("width"), "x", viewport)
@@ -5591,9 +5591,13 @@ def _parse_transform(value: str) -> tuple[float, float, float, float, float, flo
     return matrix
 
 
-def _style_transform_matrix(style: dict[str, str], viewport: tuple[float, float]) -> tuple[float, float, float, float, float, float]:
+def _style_transform_matrix(
+    element: ET.Element,
+    style: dict[str, str],
+    viewport: tuple[float, float],
+) -> tuple[float, float, float, float, float, float]:
     matrix = _parse_transform(style.get("transform", ""))
-    origin = _transform_origin(style.get("transform-origin"), viewport)
+    origin = _transform_origin(style.get("transform-origin"), viewport, element, style)
     if origin is None:
         return matrix
     return _matrix_multiply(
@@ -5602,14 +5606,20 @@ def _style_transform_matrix(style: dict[str, str], viewport: tuple[float, float]
     )
 
 
-def _transform_origin(value: str | None, viewport: tuple[float, float]) -> tuple[float, float] | None:
+def _transform_origin(
+    value: str | None,
+    viewport: tuple[float, float],
+    element: ET.Element | None = None,
+    style: dict[str, str] | None = None,
+) -> tuple[float, float] | None:
     if value is None:
         return None
     parts = _css_value_tokens(value)
     if len(parts) not in {2, 3}:
         return None
-    x = _absolute_origin_length(parts[0], "x", viewport)
-    y = _absolute_origin_length(parts[1], "y", viewport)
+    reference_box = _element_reference_box(element, style or {}, viewport) if element is not None else None
+    x = _origin_length(parts[0], "x", viewport, reference_box)
+    y = _origin_length(parts[1], "y", viewport, reference_box)
     if x is None or y is None:
         return None
     if len(parts) == 3:
@@ -5617,6 +5627,26 @@ def _transform_origin(value: str | None, viewport: tuple[float, float]) -> tuple
         if z is None or not _close(z, 0):
             return None
     return x, y
+
+
+def _origin_length(
+    value: str,
+    axis: str,
+    viewport: tuple[float, float],
+    reference_box: tuple[float, float, float, float] | None,
+) -> float | None:
+    stripped = value.strip()
+    if stripped.endswith("%"):
+        if reference_box is None:
+            return None
+        try:
+            percent = _finite_float(stripped[:-1]) / 100
+        except ValueError:
+            return None
+        offset = reference_box[0] if axis == "x" else reference_box[1]
+        size = reference_box[2] if axis == "x" else reference_box[3]
+        return offset + percent * size
+    return _absolute_origin_length(stripped, axis, viewport)
 
 
 def _absolute_origin_length(value: str, axis: str, viewport: tuple[float, float]) -> float | None:
@@ -5628,6 +5658,51 @@ def _absolute_origin_length(value: str, axis: str, viewport: tuple[float, float]
     if not re.fullmatch(length_re, lower) and not re.match(r"^(?:calc|min|max|clamp)\(", lower):
         return None
     return _optional_length(stripped, axis, viewport)
+
+
+def _element_reference_box(
+    element: ET.Element | None,
+    style: dict[str, str],
+    viewport: tuple[float, float],
+) -> tuple[float, float, float, float] | None:
+    if element is None:
+        return None
+    tag = _local_name(element.tag)
+    if tag in {"rect", "image"}:
+        x = _geometry_length(element, style, "x", 0, "x", viewport)
+        y = _geometry_length(element, style, "y", 0, "y", viewport)
+        width = _geometry_length(element, style, "width", 0, "x", viewport)
+        height = _geometry_length(element, style, "height", 0, "y", viewport)
+        return (x, y, width, height) if width >= 0 and height >= 0 else None
+    if tag == "circle":
+        cx = _geometry_length(element, style, "cx", 0, "x", viewport)
+        cy = _geometry_length(element, style, "cy", 0, "y", viewport)
+        r = _geometry_length(element, style, "r", 0, "diag", viewport)
+        return (cx - r, cy - r, r * 2, r * 2) if r >= 0 else None
+    if tag == "ellipse":
+        cx = _geometry_length(element, style, "cx", 0, "x", viewport)
+        cy = _geometry_length(element, style, "cy", 0, "y", viewport)
+        rx = _geometry_length(element, style, "rx", 0, "x", viewport)
+        ry = _geometry_length(element, style, "ry", 0, "y", viewport)
+        return (cx - rx, cy - ry, rx * 2, ry * 2) if rx >= 0 and ry >= 0 else None
+    if tag == "line":
+        x1 = _geometry_length(element, style, "x1", 0, "x", viewport)
+        y1 = _geometry_length(element, style, "y1", 0, "y", viewport)
+        x2 = _geometry_length(element, style, "x2", 0, "x", viewport)
+        y2 = _geometry_length(element, style, "y2", 0, "y", viewport)
+        return (min(x1, x2), min(y1, y2), abs(x2 - x1), abs(y2 - y1))
+    if tag in {"polygon", "polyline"}:
+        points = _parse_points(element.get("points", ""))
+    elif tag == "path":
+        path = _parse_linear_path(element.get("d", ""))
+        points = path[0] if path else []
+    else:
+        return None
+    if not points:
+        return None
+    xs = [point[0] for point in points]
+    ys = [point[1] for point in points]
+    return min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys)
 
 
 def _transform_arguments(value: str) -> list[str]:
