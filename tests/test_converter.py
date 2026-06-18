@@ -1341,6 +1341,27 @@ def test_text_decoration_line_maps_to_drawingml_decoration() -> None:
     assert analyze_svg(svg).unsupported_attributes == {}
 
 
+def test_supported_underline_styles_map_to_drawingml_underline_values() -> None:
+    svg = """<svg>
+      <text x="0" y="20" font-size="10" fill="#111111" text-decoration-line="underline" text-decoration-style="dashed">Dash</text>
+      <text x="0" y="40" font-size="10" fill="#111111" text-decoration-line="underline" text-decoration-style="dotted">Dot</text>
+      <text x="0" y="60" font-size="10" fill="#111111" text-decoration-line="underline" text-decoration-style="double">Double</text>
+    </svg>"""
+    dml = svg_to_drawingml(svg)
+
+    root = ET.fromstring(dml)
+    run_prs = root.findall(".//{http://schemas.openxmlformats.org/drawingml/2006/main}rPr")
+    assert run_prs[0].get("u") == "dash"
+    assert run_prs[1].get("u") == "dotted"
+    assert run_prs[2].get("u") == "dbl"
+    assert analyze_svg(svg).unsupported_attributes == {}
+
+    round_trip = drawingml_to_svg(dml)
+    assert 'text-decoration-style="dashed"' in round_trip
+    assert 'text-decoration-style="dotted"' in round_trip
+    assert 'text-decoration-style="double"' in round_trip
+
+
 def test_text_decoration_color_and_non_solid_style_are_reported_when_visible() -> None:
     svg = """<svg>
       <text x="0" y="20" text-decoration-line="underline" text-decoration-color="#dc2626">Color</text>

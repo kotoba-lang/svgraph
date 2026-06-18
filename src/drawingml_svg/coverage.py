@@ -852,7 +852,10 @@ def _text_decoration_style_is_supported_or_noop(style: dict[str, str]) -> bool:
         return False
     if not _has_visible_text_decoration(style):
         return True
-    return value.strip().lower() in {"", "solid"}
+    normalized = value.strip().lower()
+    if normalized in {"", "solid"}:
+        return True
+    return normalized in {"dashed", "dotted", "double"} and _has_only_visible_underline(style)
 
 
 def _text_decoration_line_is_supported_or_noop(style: dict[str, str]) -> bool:
@@ -871,6 +874,14 @@ def _has_visible_text_decoration(style: dict[str, str]) -> bool:
         return False
     tokens = set(value.strip().lower().split())
     return bool(tokens & {"underline", "line-through"})
+
+
+def _has_only_visible_underline(style: dict[str, str]) -> bool:
+    value = style.get("text-decoration-line", style.get("text-decoration"))
+    if value is None:
+        return False
+    tokens = set(value.strip().lower().split())
+    return "underline" in tokens and "line-through" not in tokens
 
 
 def _transform_origin_is_supported(

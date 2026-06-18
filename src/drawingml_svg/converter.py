@@ -55,6 +55,7 @@ class TextRun:
     font_family: str | None = None
     font_variant: str | None = None
     text_decoration: str | None = None
+    text_decoration_style: str | None = None
     text_baseline_shift: str | None = None
     letter_spacing: float | None = None
 
@@ -78,6 +79,7 @@ class Shape:
     font_family: str | None = None
     font_variant: str | None = None
     text_decoration: str | None = None
+    text_decoration_style: str | None = None
     text_anchor: str | None = None
     text_baseline: str | None = None
     text_baseline_shift: str | None = None
@@ -334,6 +336,7 @@ def _svg_shape_from_element(
                 font_family=_font_family(style.get("font-family")),
                 font_variant=_font_variant(style.get("font-variant")),
                 text_decoration=style.get("text-decoration"),
+                text_decoration_style=_text_decoration_style(style.get("text-decoration-style")),
                 text_anchor=anchor,
                 text_baseline=baseline,
                 text_baseline_shift=_baseline_shift(style.get("baseline-shift")),
@@ -456,6 +459,7 @@ def _dml_shape_from_element(element: ET.Element) -> Shape | None:
             font_family=_dml_font_family(element),
             font_variant=_dml_font_variant(element),
             text_decoration=_dml_text_decoration(element),
+            text_decoration_style=_dml_text_decoration_style(element),
             text_anchor=_dml_text_anchor(element),
             text_baseline=_dml_text_baseline(element),
             text_baseline_shift=_dml_text_baseline_shift(element),
@@ -628,6 +632,8 @@ def _shape_to_svg(shape: Shape) -> ET.Element:
             attrs["font-variant"] = shape.font_variant
         if shape.text_decoration:
             attrs["text-decoration"] = shape.text_decoration
+        if shape.text_decoration_style:
+            attrs["text-decoration-style"] = shape.text_decoration_style
         if shape.text_anchor:
             attrs["text-anchor"] = shape.text_anchor
         if shape.text_baseline:
@@ -678,6 +684,8 @@ def _svg_tspan_attrs(text_run: TextRun) -> dict[str, str]:
         attrs["font-variant"] = text_run.font_variant
     if text_run.text_decoration:
         attrs["text-decoration"] = text_run.text_decoration
+    if text_run.text_decoration_style:
+        attrs["text-decoration-style"] = text_run.text_decoration_style
     if text_run.text_baseline_shift:
         attrs["baseline-shift"] = text_run.text_baseline_shift
     if text_run.letter_spacing is not None:
@@ -1311,6 +1319,7 @@ def _append_text_body(parent: ET.Element, shape: Shape) -> None:
             font_family=shape.font_family,
             font_variant=shape.font_variant,
             text_decoration=shape.text_decoration,
+            text_decoration_style=shape.text_decoration_style,
             text_baseline_shift=shape.text_baseline_shift,
             letter_spacing=shape.letter_spacing,
         )
@@ -1341,8 +1350,9 @@ def _text_run_attrs(text_run: TextRun) -> dict[str, str]:
         attrs["cap"] = "small"
     elif text_run.font_variant == "all-small-caps":
         attrs["cap"] = "all"
-    if _has_text_decoration(text_run.text_decoration, "underline"):
-        attrs["u"] = "sng"
+    underline = _dml_underline_value(text_run.text_decoration, text_run.text_decoration_style)
+    if underline:
+        attrs["u"] = underline
     if _has_text_decoration(text_run.text_decoration, "line-through"):
         attrs["strike"] = "sngStrike"
     if text_run.text_baseline_shift == "super":
@@ -2155,6 +2165,7 @@ def _dml_text_run_from_properties(
         font_family=_dml_font_family_from_properties(candidates),
         font_variant=_dml_font_variant_from_properties(candidates),
         text_decoration=_dml_text_decoration_from_properties(candidates),
+        text_decoration_style=_dml_text_decoration_style_from_properties(candidates),
         text_baseline_shift=_dml_text_baseline_shift_from_properties(candidates),
         letter_spacing=_dml_letter_spacing_from_properties(candidates),
     )
@@ -2459,12 +2470,22 @@ def _dml_text_decoration(element: ET.Element) -> str | None:
     return _dml_text_decoration_value(r_pr)
 
 
+def _dml_text_decoration_style(element: ET.Element) -> str | None:
+    r_pr = _dml_text_property(element, lambda item: item.get("u") is not None)
+    return _dml_text_decoration_style_value(r_pr)
+
+
 def _dml_text_decoration_from_properties(candidates: Iterable[ET.Element | None]) -> str | None:
     r_pr = _dml_text_property_from_candidates(
         candidates,
         lambda item: item.get("u") is not None or item.get("strike") is not None,
     )
     return _dml_text_decoration_value(r_pr)
+
+
+def _dml_text_decoration_style_from_properties(candidates: Iterable[ET.Element | None]) -> str | None:
+    r_pr = _dml_text_property_from_candidates(candidates, lambda item: item.get("u") is not None)
+    return _dml_text_decoration_style_value(r_pr)
 
 
 def _dml_text_decoration_value(r_pr: ET.Element | None) -> str | None:
@@ -2476,6 +2497,18 @@ def _dml_text_decoration_value(r_pr: ET.Element | None) -> str | None:
     if r_pr.get("strike") and r_pr.get("strike") != "noStrike":
         values.append("line-through")
     return " ".join(values) or None
+
+
+def _dml_text_decoration_style_value(r_pr: ET.Element | None) -> str | None:
+    if r_pr is None:
+        return None
+    return {
+        "dash": "dashed",
+        "dashHeavy": "dashed",
+        "dbl": "double",
+        "dotted": "dotted",
+        "dottedHeavy": "dotted",
+    }.get(r_pr.get("u", ""))
 
 
 def _dml_text_anchor(element: ET.Element) -> str | None:
@@ -2632,6 +2665,7 @@ def _svg_text_run(
         font_family=_font_family(style.get("font-family")),
         font_variant=_font_variant(style.get("font-variant")),
         text_decoration=style.get("text-decoration"),
+        text_decoration_style=_text_decoration_style(style.get("text-decoration-style")),
         text_baseline_shift=_baseline_shift(style.get("baseline-shift")),
         letter_spacing=_svg_text_effective_letter_spacing(style, text, font_size, viewport),
     )
@@ -2952,6 +2986,23 @@ def _has_text_decoration(value: str | None, decoration: str) -> bool:
     if value is None:
         return False
     return decoration in {part.lower() for part in re.split(r"\s+", value.strip())}
+
+
+def _text_decoration_style(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip().lower()
+    return normalized if normalized in {"dashed", "dotted", "double", "solid"} else None
+
+
+def _dml_underline_value(text_decoration: str | None, text_decoration_style: str | None = None) -> str | None:
+    if not _has_text_decoration(text_decoration, "underline"):
+        return None
+    return {
+        "dashed": "dash",
+        "dotted": "dotted",
+        "double": "dbl",
+    }.get(text_decoration_style or "", "sng")
 
 
 def _dml_custom_points(cust: ET.Element, x: float, y: float) -> tuple[list[tuple[float, float]], bool]:
