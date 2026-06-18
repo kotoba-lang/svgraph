@@ -1604,6 +1604,54 @@ def test_rectangular_clip_path_removes_two_point_polyline_outside_clip() -> None
     assert analyze_svg(svg).unsupported_attributes == {}
 
 
+def test_rectangular_clip_path_clips_two_point_path_geometry() -> None:
+    svg = """<svg>
+      <defs><clipPath id="crop"><rect x="10" y="5" width="20" height="10"/></clipPath></defs>
+      <path d="M0 0 L40 20" fill="none" stroke="#111111" stroke-width="2" clip-path="url(#crop)"/>
+    </svg>"""
+    dml = svg_to_drawingml(svg)
+
+    root = ET.fromstring(dml)
+    shape_off = root.findall(".//{http://schemas.openxmlformats.org/drawingml/2006/main}off")[1]
+    shape_ext = root.findall(".//{http://schemas.openxmlformats.org/drawingml/2006/main}ext")[1]
+    points = root.findall(".//{http://schemas.openxmlformats.org/drawingml/2006/main}pt")
+    assert "<a:custGeom>" in dml
+    assert shape_off.attrib == {"x": "95250", "y": "47625"}
+    assert shape_ext.attrib == {"cx": "190500", "cy": "95250"}
+    assert points[0].attrib == {"x": "0", "y": "0"}
+    assert points[1].attrib == {"x": "190500", "y": "95250"}
+    assert analyze_svg(svg).unsupported_attributes == {}
+
+
+def test_object_bounding_box_clip_path_clips_two_point_path_geometry() -> None:
+    svg = """<svg>
+      <defs><clipPath id="crop" clipPathUnits="objectBoundingBox"><rect x=".25" y=".25" width=".5" height=".5"/></clipPath></defs>
+      <path d="M10 10 L50 30" fill="none" stroke="#111111" stroke-width="2" clip-path="url(#crop)"/>
+    </svg>"""
+    dml = svg_to_drawingml(svg)
+
+    root = ET.fromstring(dml)
+    shape_off = root.findall(".//{http://schemas.openxmlformats.org/drawingml/2006/main}off")[1]
+    shape_ext = root.findall(".//{http://schemas.openxmlformats.org/drawingml/2006/main}ext")[1]
+    points = root.findall(".//{http://schemas.openxmlformats.org/drawingml/2006/main}pt")
+    assert "<a:custGeom>" in dml
+    assert shape_off.attrib == {"x": "190500", "y": "142875"}
+    assert shape_ext.attrib == {"cx": "190500", "cy": "95250"}
+    assert points[0].attrib == {"x": "0", "y": "0"}
+    assert points[1].attrib == {"x": "190500", "y": "95250"}
+    assert analyze_svg(svg).unsupported_attributes == {}
+
+
+def test_rectangular_clip_path_removes_two_point_path_outside_clip() -> None:
+    svg = """<svg>
+      <defs><clipPath id="crop"><rect x="10" y="10" width="10" height="10"/></clipPath></defs>
+      <path d="M0 0 L5 5" fill="none" stroke="#111111" stroke-width="2" clip-path="url(#crop)"/>
+    </svg>"""
+
+    assert "<p:sp>" not in svg_to_drawingml(svg)
+    assert analyze_svg(svg).unsupported_attributes == {}
+
+
 def test_non_box_clip_targets_remain_reported_as_unsupported() -> None:
     svg = """<svg>
       <defs><clipPath id="crop"><rect x="10" y="12" width="20" height="10"/></clipPath></defs>
@@ -1617,6 +1665,15 @@ def test_multi_point_polyline_clip_path_remains_reported_as_unsupported() -> Non
     svg = """<svg>
       <defs><clipPath id="crop"><rect x="10" y="12" width="20" height="10"/></clipPath></defs>
       <polyline points="0,0 20,0 20,20" fill="none" stroke="#111111" clip-path="url(#crop)"/>
+    </svg>"""
+
+    assert analyze_svg(svg).unsupported_attributes == {"clip-path": 1}
+
+
+def test_multi_point_path_clip_path_remains_reported_as_unsupported() -> None:
+    svg = """<svg>
+      <defs><clipPath id="crop"><rect x="10" y="12" width="20" height="10"/></clipPath></defs>
+      <path d="M0 0 L20 0 L20 20" fill="none" stroke="#111111" clip-path="url(#crop)"/>
     </svg>"""
 
     assert analyze_svg(svg).unsupported_attributes == {"clip-path": 1}

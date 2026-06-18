@@ -4467,6 +4467,13 @@ def _clip_path_is_supported(
         points = _parse_points(element.get("points", ""))
         if len(points) != 2:
             return False
+    elif tag == "path":
+        path = _parse_linear_path(element.get("d", ""))
+        if path is None:
+            return False
+        points, closed = path
+        if closed or len(points) != 2:
+            return False
     elif tag not in {"rect", "circle", "ellipse", "line", "text", "image"}:
         return False
     return _rect_clip_bounds(None, style, refs, matrix) is not None or _rect_clip_path_has_object_bbox_rect(style, refs)
