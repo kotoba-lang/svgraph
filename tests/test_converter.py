@@ -5158,16 +5158,21 @@ def test_invalid_negative_rect_radius_is_ignored() -> None:
 
 
 def test_stroke_linecap_and_linejoin_values_are_normalized() -> None:
-    source = '<svg><polyline points="0,0 20,0 20,12" fill="none" stroke="#111111" stroke-width="2" stroke-linecap=" ROUND " stroke-linejoin=" BEVEL "/></svg>'
+    source = """<svg>
+      <polyline points="0,0 20,0 20,12" fill="none" stroke="#111111" stroke-width="2" stroke-linecap=" ROUND " stroke-linejoin=" BEVEL "/>
+      <polyline points="0,16 20,16 20,28" fill="none" stroke="#222222" stroke-width="2" stroke-linejoin="miter-clip"/>
+    </svg>"""
     dml = svg_to_drawingml(source)
 
     assert 'cap="rnd"' in dml
     assert "<a:bevel/>" in dml
+    assert '<a:miter lim="400000"/>' in dml
     assert analyze_svg(source).unsupported_attributes == {}
 
     svg = drawingml_to_svg(dml)
     assert 'stroke-linecap="round"' in svg
     assert 'stroke-linejoin="bevel"' in svg
+    assert 'stroke-linejoin="miter"' in svg
 
 
 def test_analyze_svg_reports_unconverted_stroke_line_enums_when_visible() -> None:
@@ -5186,7 +5191,7 @@ def test_analyze_svg_reports_unconverted_stroke_line_enums_when_visible() -> Non
 
     assert analyze_svg(svg).unsupported_attributes == {
         "stroke-linecap": 1,
-        "stroke-linejoin": 2,
+        "stroke-linejoin": 1,
     }
 
 

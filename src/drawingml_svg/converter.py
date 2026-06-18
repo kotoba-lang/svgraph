@@ -1775,6 +1775,8 @@ def _svg_linecap(value: str | None) -> str | None:
 
 def _svg_linejoin(value: str | None) -> str | None:
     normalized = value.strip().lower() if value is not None else ""
+    if normalized == "miter-clip":
+        return "miter"
     return normalized if normalized in {"bevel", "miter", "round"} else None
 
 
