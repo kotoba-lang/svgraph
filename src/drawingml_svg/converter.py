@@ -451,7 +451,7 @@ def _svg_foreign_object_table_shapes(
             cell_height = (row_edges[end_row] - row_edges[row_index]) * scale_y
             cell_style = _html_table_cell_style(element, cell, css, style)
             fill, fill_alpha = _html_background_fill(cell_style)
-            stroke = _html_border_color(cell_style) or "#000000"
+            stroke, stroke_alpha = _html_border_stroke(cell_style)
             shapes.append(
                 Shape(
                     "rect",
@@ -461,9 +461,10 @@ def _svg_foreign_object_table_shapes(
                     cell_height,
                     Paint(
                         fill=fill or "#ffffff",
-                        stroke=stroke,
+                        stroke=stroke or "#000000",
                         stroke_width=_html_border_width(cell_style),
                         fill_alpha=fill_alpha,
+                        stroke_alpha=stroke_alpha,
                     ),
                 )
             )
@@ -838,9 +839,17 @@ def _html_background_fill(style: dict[str, str]) -> tuple[str | None, float | No
 
 
 def _html_border_color(style: dict[str, str]) -> str | None:
+    color, _ = _html_border_stroke(style)
+    return color
+
+
+def _html_border_stroke(style: dict[str, str]) -> tuple[str | None, float | None]:
     if _html_border_is_none(style):
-        return "none"
-    return _html_first_color(style.get("border-color")) or _html_first_color(style.get("border"))
+        return "none", None
+    color, alpha = _html_first_color_value(style.get("border-color"))
+    if color is not None:
+        return color, alpha
+    return _html_first_color_value(style.get("border"))
 
 
 def _html_border_width(style: dict[str, str]) -> float:
