@@ -6178,6 +6178,7 @@ def _computed_style(
         ("valign", "vertical-align"),
         ("bgcolor", "background-color"),
         ("border", "border"),
+        ("bordercolor", "border-color"),
         ("cellpadding", "padding"),
     ):
         if element.get(attr) is not None:

@@ -1439,6 +1439,31 @@ def test_foreign_object_html_table_spacing_presentation_attributes_convert() -> 
     assert analyze_svg(svg).unsupported_elements == {}
 
 
+def test_foreign_object_html_table_bordercolor_presentation_attr_converts() -> None:
+    svg = """<svg width="150" height="60">
+      <foreignObject x="10" y="8" width="120" height="30">
+        <body xmlns="http://www.w3.org/1999/xhtml">
+          <table border="2" bordercolor="#2563eb">
+            <tr>
+              <td>Inherited</td>
+              <td bordercolor="#dc2626">Override</td>
+            </tr>
+          </table>
+        </body>
+      </foreignObject>
+    </svg>"""
+
+    dml = svg_to_drawingml(svg)
+
+    assert "<a:tbl>" in dml
+    assert 'val="2563EB"' in dml
+    assert 'val="DC2626"' in dml
+    assert dml.count('w="19050"') >= 2
+    assert "<a:t>Inherited</a:t>" in dml
+    assert "<a:t>Override</a:t>" in dml
+    assert analyze_svg(svg).unsupported_elements == {}
+
+
 def test_foreign_object_html_table_cell_rtl_direction_converts() -> None:
     svg = """<svg width="150" height="50">
       <foreignObject x="10" y="8" width="120" height="24">
