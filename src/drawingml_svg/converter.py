@@ -466,11 +466,27 @@ def _dml_shape_from_element(element: ET.Element) -> Shape | None:
     prst = sp_pr.find(qn(NS_A, "prstGeom"))
     if prst is None:
         return None
-    kind = _dml_kind_to_shape(prst.get("prst", ""))
-    if kind is None:
-        return None
+    prst_name = prst.get("prst", "")
     xfrm = sp_pr.find(qn(NS_A, "xfrm"))
     x, y, width, height, flip_h, flip_v, rotation = _dml_xfrm(xfrm)
+    preset_points = _dml_preset_points(prst_name, x, y, width, height)
+    if preset_points:
+        return Shape(
+            "freeform",
+            x,
+            y,
+            width,
+            height,
+            _dml_paint(sp_pr, element),
+            flip_h,
+            flip_v,
+            tuple(preset_points),
+            True,
+            rotation=rotation,
+        )
+    kind = _dml_kind_to_shape(prst_name)
+    if kind is None:
+        return None
     radius = min(width, height) / 6 if kind == "roundRect" else None
     return Shape(kind, x, y, width, height, _dml_paint(sp_pr, element), flip_h, flip_v, rx=radius, ry=radius, rotation=rotation)
 
@@ -2786,6 +2802,34 @@ def _dml_kind_to_shape(kind: str) -> str | None:
         "line": "line",
         "straightConnector1": "line",
     }.get(kind)
+
+
+def _dml_preset_points(kind: str, x: float, y: float, width: float, height: float) -> list[tuple[float, float]]:
+    if width <= 0 or height <= 0:
+        return []
+    left = x
+    center_x = x + width / 2
+    right = x + width
+    top = y
+    center_y = y + height / 2
+    bottom = y + height
+    quarter_x = x + width / 4
+    three_quarter_x = x + width * 3 / 4
+    if kind == "triangle":
+        return [(center_x, top), (right, bottom), (left, bottom)]
+    if kind == "rtTriangle":
+        return [(left, top), (right, bottom), (left, bottom)]
+    if kind == "diamond":
+        return [(center_x, top), (right, center_y), (center_x, bottom), (left, center_y)]
+    if kind == "parallelogram":
+        return [(quarter_x, top), (right, top), (three_quarter_x, bottom), (left, bottom)]
+    if kind == "trapezoid":
+        return [(quarter_x, top), (three_quarter_x, top), (right, bottom), (left, bottom)]
+    if kind == "pentagon":
+        return [(center_x, top), (right, y + height * 0.38), (x + width * 0.81, bottom), (x + width * 0.19, bottom), (left, y + height * 0.38)]
+    if kind == "hexagon":
+        return [(quarter_x, top), (three_quarter_x, top), (right, center_y), (three_quarter_x, bottom), (quarter_x, bottom), (left, center_y)]
+    return []
 
 
 def _freeform_shape(points: list[tuple[float, float]], paint: Paint, closed: bool) -> Shape:

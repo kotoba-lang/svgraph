@@ -2749,6 +2749,69 @@ def test_drawingml_straight_connector_preset_round_trips_to_svg_line() -> None:
     assert 'fill="none"' in svg
 
 
+def test_drawingml_common_polygon_presets_round_trip_to_svg_polygons() -> None:
+    dml = """<p:spTree xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
+      xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="2" name="triangle"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="95250" y="190500"/><a:ext cx="381000" cy="190500"/></a:xfrm>
+          <a:prstGeom prst="triangle"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="FEE2E2"/></a:solidFill>
+        </p:spPr>
+      </p:sp>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="3" name="diamond"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="571500" y="190500"/><a:ext cx="190500" cy="190500"/></a:xfrm>
+          <a:prstGeom prst="diamond"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="DBEAFE"/></a:solidFill>
+        </p:spPr>
+      </p:sp>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="4" name="pentagon"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="857250" y="190500"/><a:ext cx="190500" cy="190500"/></a:xfrm>
+          <a:prstGeom prst="pentagon"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="DCFCE7"/></a:solidFill>
+        </p:spPr>
+      </p:sp>
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="5" name="hexagon"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="1143000" y="190500"/><a:ext cx="190500" cy="190500"/></a:xfrm>
+          <a:prstGeom prst="hexagon"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="FEF3C7"/></a:solidFill>
+        </p:spPr>
+      </p:sp>
+    </p:spTree>"""
+
+    svg = drawingml_to_svg(dml)
+
+    assert '<polygon fill="#fee2e2" points="30,20 50,40 10,40"/>' in svg
+    assert '<polygon fill="#dbeafe" points="70,20 80,30 70,40 60,30"/>' in svg
+    assert '<polygon fill="#dcfce7" points="100,20 110,27.6 106.2,40 93.8,40 90,27.6"/>' in svg
+    assert '<polygon fill="#fef3c7" points="125,20 135,20 140,30 135,40 125,40 120,30"/>' in svg
+
+
+def test_drawingml_polygon_presets_preserve_rotation_and_flip() -> None:
+    dml = """<p:spTree xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
+      xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="2" name="rotated diamond"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm rot="1800000" flipH="1"><a:off x="95250" y="190500"/><a:ext cx="381000" cy="381000"/></a:xfrm>
+          <a:prstGeom prst="diamond"><a:avLst/></a:prstGeom>
+          <a:solidFill><a:srgbClr val="EDE9FE"/></a:solidFill>
+        </p:spPr>
+      </p:sp>
+    </p:spTree>"""
+
+    svg = drawingml_to_svg(dml)
+
+    assert '<polygon fill="#ede9fe" points="30,20 50,40 30,60 10,40" transform="rotate(30 30 40) translate(30 40) scale(-1 1) translate(-30 -40)"/>' in svg
+
+
 def test_drawingml_group_transform_scales_child_shapes_to_svg() -> None:
     dml = """<p:spTree xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
       xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
