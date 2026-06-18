@@ -580,7 +580,18 @@ def _html_inline_style(
         style["font-weight"] = "bold"
     if tag in {"i", "em"} and style.get("font-style", "normal").strip().lower() == "normal":
         style["font-style"] = "italic"
+    if tag == "u":
+        _add_html_text_decoration(style, "underline")
+    if tag in {"s", "strike", "del"}:
+        _add_html_text_decoration(style, "line-through")
     return style
+
+
+def _add_html_text_decoration(style: dict[str, str], decoration: str) -> None:
+    current = style.get("text-decoration", "")
+    tokens = _text_decoration_line_tokens(current)
+    if decoration not in tokens:
+        style["text-decoration"] = f"{current} {decoration}".strip()
 
 
 def _html_text_run(text: str, style: dict[str, str], scale: float, break_before: bool) -> TextRun:
@@ -593,6 +604,7 @@ def _html_text_run(text: str, style: dict[str, str], scale: float, break_before:
         font_style=style.get("font-style"),
         font_family=_font_family(style.get("font-family")),
         text_decoration=style.get("text-decoration"),
+        text_decoration_style=_text_decoration_style(style.get("text-decoration-style"), style.get("text-decoration")),
     )
 
 
