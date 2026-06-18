@@ -16,6 +16,7 @@ This project follows a simple, human-readable changelog. Until the project reach
 - Expanded rectangular SVG `clipPath` conversion and analyzer support to ellipse/circle, line, and two-point open path/polyline fixtures.
 - Added complex SVG fixture PPTX smoke coverage to CI and the release checklist.
 - Added text-level SVG `baseline-shift` `super`/`sub` conversion to DrawingML run baseline values.
+- Added run-level `tspan` fill/font/outline/decoration/letter-spacing/baseline conversion to separate DrawingML text runs.
 
 ## 0.1.0
 

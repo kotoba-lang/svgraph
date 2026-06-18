@@ -45,6 +45,21 @@ class Paint:
 
 
 @dataclass(frozen=True)
+class TextRun:
+    text: str
+    paint: Paint
+    break_before: bool = False
+    font_size: float | None = None
+    font_weight: str | None = None
+    font_style: str | None = None
+    font_family: str | None = None
+    font_variant: str | None = None
+    text_decoration: str | None = None
+    text_baseline_shift: str | None = None
+    letter_spacing: float | None = None
+
+
+@dataclass(frozen=True)
 class Shape:
     kind: str
     x: float
@@ -72,6 +87,7 @@ class Shape:
     image_href: str | None = None
     image_src_rect: tuple[int, int, int, int] | None = None
     rotation: float | None = None
+    text_runs: tuple[TextRun, ...] = ()
 
 
 CssDeclaration = tuple[str, bool]
@@ -286,6 +302,7 @@ def _svg_shape_from_element(
         text = _svg_text_content(element, style, css, ancestors)
         if text:
             font_size = _svg_font_size(style.get("font-size")) * _matrix_scale(matrix)
+            text_runs = _svg_text_runs(element, style, css, refs, ancestors, matrix, viewport)
             x, y = _apply_matrix(matrix, _svg_text_position(element, viewport))
             text_length = _svg_text_length(style, text, viewport)
             natural_width = max(font_size * max(len(line) for line in text.split("\n")) * 0.9, font_size * 2)
@@ -324,6 +341,7 @@ def _svg_shape_from_element(
                 text_baseline_shift=_baseline_shift(style.get("baseline-shift")),
                 letter_spacing=_svg_text_effective_letter_spacing(style, text, font_size, viewport),
                 rotation=_svg_text_rotation(element, style),
+                text_runs=text_runs,
             )
     if tag == "image":
         href = _href(element)
@@ -1018,20 +1036,7 @@ def _text_paint(
     stroke_scale: float = 1.0,
     viewport: tuple[float, float] = (0.0, 0.0),
 ) -> Paint:
-    fill, color_alpha = _paint_value(style.get("fill"), refs, style.get("color"), css or [])
-    stroke, stroke_color_alpha = _paint_value(style.get("stroke"), refs, style.get("color"), css or [])
-    stroke_width = _svg_stroke_width(style, viewport)
-    if stroke_width == 0:
-        stroke = "none"
-    if stroke not in {None, "none"} and stroke_width is None:
-        stroke_width = 1.0
-    return Paint(
-        fill=fill or "#000000",
-        stroke=stroke,
-        stroke_width=stroke_width * stroke_scale if stroke_width is not None else None,
-        fill_alpha=_combined_alpha(_alpha(style, "fill"), color_alpha),
-        stroke_alpha=_combined_alpha(_alpha(style, "stroke"), stroke_color_alpha),
-    )
+    return _scale_paint(_paint_without_markers(_svg_paint(style, refs, css=css, viewport=viewport)), stroke_scale)
 
 
 def _svg_stroke_width(style: dict[str, str], viewport: tuple[float, float] = (0.0, 0.0)) -> float | None:
@@ -1262,56 +1267,84 @@ def _append_text_body(parent: ET.Element, shape: Shape) -> None:
     paragraph_align = _text_anchor_to_dml(shape.text_anchor)
     if paragraph_align:
         ET.SubElement(paragraph, qn(NS_A, "pPr"), {"algn": paragraph_align})
-    run = ET.SubElement(paragraph, qn(NS_A, "r"))
-    r_pr_attrs = {}
-    if shape.font_size:
-        r_pr_attrs["sz"] = str(round(shape.font_size * 100))
-    if _is_bold(shape.font_weight):
-        r_pr_attrs["b"] = "1"
-    if _is_italic(shape.font_style):
-        r_pr_attrs["i"] = "1"
-    if shape.font_variant == "small-caps":
-        r_pr_attrs["cap"] = "small"
-    elif shape.font_variant == "all-small-caps":
-        r_pr_attrs["cap"] = "all"
-    if _has_text_decoration(shape.text_decoration, "underline"):
-        r_pr_attrs["u"] = "sng"
-    if _has_text_decoration(shape.text_decoration, "line-through"):
-        r_pr_attrs["strike"] = "sngStrike"
-    if shape.text_baseline_shift == "super":
-        r_pr_attrs["baseline"] = "30000"
-    elif shape.text_baseline_shift == "sub":
-        r_pr_attrs["baseline"] = "-25000"
-    if shape.letter_spacing is not None:
-        r_pr_attrs["spc"] = str(round(shape.letter_spacing * 0.75 * 100))
-    r_pr = ET.SubElement(run, qn(NS_A, "rPr"), r_pr_attrs)
-    _append_text_run_properties(r_pr, shape)
-    lines = (shape.text or "").split("\n")
-    ET.SubElement(run, qn(NS_A, "t")).text = lines[0] if lines else ""
-    for line in lines[1:]:
-        ET.SubElement(paragraph, qn(NS_A, "br"))
-        br_run = ET.SubElement(paragraph, qn(NS_A, "r"))
-        br_r_pr = ET.SubElement(br_run, qn(NS_A, "rPr"), r_pr_attrs)
-        _append_text_run_properties(br_r_pr, shape)
-        ET.SubElement(br_run, qn(NS_A, "t")).text = line
+    if shape.text_runs:
+        for text_run in shape.text_runs:
+            if text_run.break_before:
+                ET.SubElement(paragraph, qn(NS_A, "br"))
+            _append_text_run(paragraph, text_run)
+    else:
+        text_run = TextRun(
+            text=shape.text or "",
+            paint=shape.paint,
+            font_size=shape.font_size,
+            font_weight=shape.font_weight,
+            font_style=shape.font_style,
+            font_family=shape.font_family,
+            font_variant=shape.font_variant,
+            text_decoration=shape.text_decoration,
+            text_baseline_shift=shape.text_baseline_shift,
+            letter_spacing=shape.letter_spacing,
+        )
+        lines = text_run.text.split("\n")
+        _append_text_run(paragraph, replace(text_run, text=lines[0] if lines else ""))
+        for line in lines[1:]:
+            ET.SubElement(paragraph, qn(NS_A, "br"))
+            _append_text_run(paragraph, replace(text_run, text=line))
     ET.SubElement(paragraph, qn(NS_A, "endParaRPr"))
 
 
-def _append_text_run_properties(r_pr: ET.Element, shape: Shape) -> None:
-    if shape.paint.fill and shape.paint.fill != "none":
+def _append_text_run(parent: ET.Element, text_run: TextRun) -> None:
+    run = ET.SubElement(parent, qn(NS_A, "r"))
+    r_pr = ET.SubElement(run, qn(NS_A, "rPr"), _text_run_attrs(text_run))
+    _append_text_run_properties(r_pr, text_run)
+    ET.SubElement(run, qn(NS_A, "t")).text = text_run.text
+
+
+def _text_run_attrs(text_run: TextRun) -> dict[str, str]:
+    attrs = {}
+    if text_run.font_size:
+        attrs["sz"] = str(round(text_run.font_size * 100))
+    if _is_bold(text_run.font_weight):
+        attrs["b"] = "1"
+    if _is_italic(text_run.font_style):
+        attrs["i"] = "1"
+    if text_run.font_variant == "small-caps":
+        attrs["cap"] = "small"
+    elif text_run.font_variant == "all-small-caps":
+        attrs["cap"] = "all"
+    if _has_text_decoration(text_run.text_decoration, "underline"):
+        attrs["u"] = "sng"
+    if _has_text_decoration(text_run.text_decoration, "line-through"):
+        attrs["strike"] = "sngStrike"
+    if text_run.text_baseline_shift == "super":
+        attrs["baseline"] = "30000"
+    elif text_run.text_baseline_shift == "sub":
+        attrs["baseline"] = "-25000"
+    if text_run.letter_spacing is not None:
+        attrs["spc"] = str(round(text_run.letter_spacing * 0.75 * 100))
+    return attrs
+
+
+def _append_text_run_properties(r_pr: ET.Element, text_run: TextRun) -> None:
+    paint = text_run.paint
+    if paint.fill and paint.fill != "none":
         fill = ET.SubElement(r_pr, qn(NS_A, "solidFill"))
-        color = ET.SubElement(fill, qn(NS_A, "srgbClr"), {"val": shape.paint.fill.removeprefix("#").upper()})
-        _append_alpha(color, shape.paint.fill_alpha)
-    if shape.paint.stroke and shape.paint.stroke != "none":
+        color = ET.SubElement(fill, qn(NS_A, "srgbClr"), {"val": paint.fill.removeprefix("#").upper()})
+        _append_alpha(color, paint.fill_alpha)
+    if paint.stroke and paint.stroke != "none":
         attrs = {}
-        if shape.paint.stroke_width is not None:
-            attrs["w"] = str(_emu(shape.paint.stroke_width))
+        if paint.stroke_width is not None:
+            attrs["w"] = str(_emu(paint.stroke_width))
+        if paint.stroke_linecap:
+            attrs["cap"] = _svg_linecap_to_dml(paint.stroke_linecap)
         ln = ET.SubElement(r_pr, qn(NS_A, "ln"), attrs)
         solid = ET.SubElement(ln, qn(NS_A, "solidFill"))
-        color = ET.SubElement(solid, qn(NS_A, "srgbClr"), {"val": shape.paint.stroke.removeprefix("#").upper()})
-        _append_alpha(color, shape.paint.stroke_alpha)
-    if shape.font_family:
-        ET.SubElement(r_pr, qn(NS_A, "latin"), {"typeface": shape.font_family})
+        color = ET.SubElement(solid, qn(NS_A, "srgbClr"), {"val": paint.stroke.removeprefix("#").upper()})
+        _append_alpha(color, paint.stroke_alpha)
+        _append_dml_dash(ln, paint.stroke_dasharray, paint.stroke_width)
+        _append_dml_join(ln, paint.stroke_linejoin, paint.stroke_miterlimit)
+    if text_run.font_family:
+        ET.SubElement(r_pr, qn(NS_A, "latin"), {"typeface": text_run.font_family})
 
 
 def _dml_color(parent: ET.Element) -> str | None:
@@ -2277,6 +2310,65 @@ def _svg_text_content(
                 lines.append(_apply_text_transform(text, child_style.get("text-transform")))
         previous_children.append(child)
     return "\n".join(lines)
+
+
+def _svg_text_runs(
+    element: ET.Element,
+    style: dict[str, str],
+    css: list[CssRule],
+    refs: dict[str, ET.Element],
+    ancestors: tuple[ET.Element, ...],
+    matrix: tuple[float, float, float, float, float, float],
+    viewport: tuple[float, float],
+) -> tuple[TextRun, ...]:
+    if not any(_local_name(child.tag) == "tspan" for child in element):
+        return ()
+    preserve_space = _xml_space_preserve(element)
+    scale = _matrix_scale(matrix)
+    runs: list[TextRun] = []
+    leading = element.text or ""
+    if not preserve_space:
+        leading = leading.strip()
+    if leading:
+        runs.append(_svg_text_run(leading, style, refs, css, scale, viewport, False))
+    previous_children: list[ET.Element] = []
+    for child in element:
+        if _local_name(child.tag) == "tspan":
+            child_preserve_space = preserve_space or _xml_space_preserve(child)
+            child_style = _computed_style(child, css, style, ancestors + (element,), tuple(previous_children))
+            text = "".join(child.itertext())
+            if not child_preserve_space:
+                text = text.strip()
+            if text:
+                runs.append(_svg_text_run(text, child_style, refs, css, scale, viewport, bool(runs)))
+        previous_children.append(child)
+    return tuple(runs)
+
+
+def _svg_text_run(
+    text: str,
+    style: dict[str, str],
+    refs: dict[str, ET.Element],
+    css: list[CssRule],
+    scale: float,
+    viewport: tuple[float, float],
+    break_before: bool,
+) -> TextRun:
+    font_size = _svg_font_size(style.get("font-size")) * scale
+    text = _apply_text_transform(text, style.get("text-transform"))
+    return TextRun(
+        text=text,
+        paint=_text_paint(style, refs, css, _stroke_transform_scale(style, (scale, 0, 0, scale, 0, 0)), viewport),
+        break_before=break_before,
+        font_size=font_size,
+        font_weight=style.get("font-weight"),
+        font_style=style.get("font-style"),
+        font_family=_font_family(style.get("font-family")),
+        font_variant=_font_variant(style.get("font-variant")),
+        text_decoration=style.get("text-decoration"),
+        text_baseline_shift=_baseline_shift(style.get("baseline-shift")),
+        letter_spacing=_svg_text_effective_letter_spacing(style, text, font_size, viewport),
+    )
 
 
 def _svg_font_size(value: str | None) -> float:

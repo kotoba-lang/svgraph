@@ -428,34 +428,8 @@ def _inspect_tspan_run_attributes(
 ) -> None:
     if _local_name(element.tag) != "tspan":
         return
-    for attr in (
-        "fill",
-        "fill-opacity",
-        "font-family",
-        "font-size",
-        "font-style",
-        "font-weight",
-        "stroke",
-        "stroke-dasharray",
-        "stroke-miterlimit",
-        "stroke-opacity",
-        "stroke-width",
-        "text-anchor",
-        "text-decoration",
-        "text-decoration-line",
-    ):
-        if specified_style.get(attr) is not None:
-            if (
-                attr == "text-decoration"
-                and specified_style.get("text-decoration-line") is not None
-                and specified_style.get("text-decoration") == specified_style.get("text-decoration-line")
-            ):
-                continue
-            stats.add_unsupported_attribute(attr)
-    if _font_variant_is_supported(specified_style):
-        stats.add_unsupported_attribute("font-variant")
-    if _letter_spacing_is_supported(specified_style):
-        stats.add_unsupported_attribute("letter-spacing")
+    if specified_style.get("text-anchor") is not None:
+        stats.add_unsupported_attribute("text-anchor")
     if _word_spacing_is_supported(element, specified_style):
         stats.add_unsupported_attribute("word-spacing")
 
@@ -620,7 +594,7 @@ def _baseline_shift_has_no_effect(style: dict[str, str]) -> bool:
 
 def _baseline_shift_is_supported(element: ET.Element, style: dict[str, str]) -> bool:
     value = style.get("baseline-shift")
-    if value is None or _local_name(element.tag) != "text":
+    if value is None or _local_name(element.tag) not in {"text", "tspan"}:
         return False
     return value.strip().lower() in {"super", "sub"}
 

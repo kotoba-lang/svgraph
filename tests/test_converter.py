@@ -1377,10 +1377,14 @@ def test_text_baseline_shift_super_and_sub_convert_to_drawingml() -> None:
     assert 'baseline-shift="sub"' in drawingml_to_svg(sub_dml)
 
 
-def test_tspan_baseline_shift_remains_reported_as_run_level_unsupported() -> None:
+def test_tspan_baseline_shift_converts_to_run_baseline() -> None:
     svg = '<svg><text x="0" y="20">A<tspan baseline-shift="super">2</tspan></text></svg>'
+    dml = svg_to_drawingml(svg)
 
-    assert analyze_svg(svg).unsupported_attributes == {"baseline-shift": 1}
+    assert analyze_svg(svg).unsupported_attributes == {}
+    assert '<a:t>A</a:t>' in dml
+    assert 'baseline="30000"' in dml
+    assert '<a:t>2</a:t>' in dml
 
 
 def test_unconverted_text_direction_and_typography_attributes_are_reported() -> None:
@@ -2303,7 +2307,7 @@ def test_text_stroke_maps_to_run_outline() -> None:
 
     assert report.unsupported_elements == {}
     assert report.unsupported_attributes == {}
-    assert '<a:ln w="19050">' in dml
+    assert '<a:ln w="19050" cap="flat">' in dml
     assert 'val="FFFFFF"' in dml
     assert 'val="50000"' in dml
 
@@ -4390,7 +4394,7 @@ def test_text_stroke_width_scales_with_transform() -> None:
     dml = svg_to_drawingml(svg)
 
     assert '<a:rPr sz="3200">' in dml
-    assert '<a:ln w="38100">' in dml
+    assert '<a:ln w="38100" cap="flat">' in dml
 
     round_trip = drawingml_to_svg(dml)
     assert 'font-size="32"' in round_trip
@@ -4403,7 +4407,7 @@ def test_text_non_scaling_stroke_width_survives_transform() -> None:
     dml = svg_to_drawingml(svg)
 
     assert '<a:rPr sz="3200">' in dml
-    assert '<a:ln w="19050">' in dml
+    assert '<a:ln w="19050" cap="flat">' in dml
     assert analyze_svg(svg).unsupported_attributes == {}
 
     round_trip = drawingml_to_svg(dml)
@@ -5902,37 +5906,35 @@ def test_tspan_baseline_controls_are_reported_as_unconverted() -> None:
     }
 
 
-def test_tspan_run_level_styling_is_reported_as_unconverted() -> None:
+def test_tspan_run_level_styling_converts_to_separate_drawingml_runs() -> None:
     svg = """<svg>
       <text x="0" y="20" font-size="10" fill="#111111">
         <tspan fill="#ff0000" fill-opacity=".5" font-family="Arial" font-size="24"
           font-style="italic" font-weight="700" font-variant="small-caps"
           stroke="#0000ff" stroke-width="2" stroke-opacity=".5" stroke-dasharray="4 2"
           stroke-miterlimit="6" text-anchor="end" text-decoration-line="underline"
-          letter-spacing="1px" word-spacing="2px">Wide gap</tspan>
+          letter-spacing="1px" word-spacing="2px" baseline-shift="super">Wide gap</tspan>
         <tspan text-transform="uppercase">kept</tspan>
       </text>
       <text font-size="10" fill="#111111"><tspan x="20" y="40" dx="5" dy="7">Position</tspan></text>
     </svg>"""
 
     assert analyze_svg(svg).unsupported_attributes == {
-        "fill": 1,
-        "fill-opacity": 1,
-        "font-family": 1,
-        "font-size": 1,
-        "font-style": 1,
-        "font-variant": 1,
-        "font-weight": 1,
-        "letter-spacing": 1,
-        "stroke": 1,
-        "stroke-dasharray": 1,
-        "stroke-miterlimit": 1,
-        "stroke-opacity": 1,
-        "stroke-width": 1,
         "text-anchor": 1,
-        "text-decoration-line": 1,
         "word-spacing": 1,
     }
+    dml = svg_to_drawingml(svg)
+
+    assert '<a:rPr sz="2400" b="1" i="1" cap="small" u="sng" baseline="30000" spc="75">' in dml
+    assert '<a:srgbClr val="FF0000">' in dml
+    assert '<a:alpha val="50000"/>' in dml
+    assert '<a:ln w="19050" cap="flat">' in dml
+    assert '<a:srgbClr val="0000FF">' in dml
+    assert '<a:ds d="200000" sp="100000"/>' in dml
+    assert '<a:miter lim="600000"/>' in dml
+    assert '<a:latin typeface="Arial"/>' in dml
+    assert '<a:t>Wide gap</a:t>' in dml
+    assert '<a:t>KEPT</a:t>' in dml
 
 
 def test_font_weight_and_style_values_are_normalized() -> None:
