@@ -318,7 +318,7 @@ def _inspect_attributes(
             continue
         if attr == "font-feature-settings" and _css_none_or_normal_has_no_effect(specified_style, attr):
             continue
-        if attr == "font-kerning" and _css_auto_or_normal_has_no_effect(specified_style, attr):
+        if attr == "font-kerning" and _font_kerning_has_no_effect(element, specified_style):
             continue
         if attr == "font-size-adjust" and _font_size_adjust_has_no_effect(specified_style):
             continue
@@ -330,7 +330,7 @@ def _inspect_attributes(
             specified_style, attr
         ):
             continue
-        if attr == "kerning" and _kerning_has_no_effect(specified_style):
+        if attr == "kerning" and _kerning_has_no_effect(element, specified_style):
             continue
         if attr in {"gradientTransform", "gradientUnits", "spreadMethod"} and _gradient_fallback_is_supported(
             element, refs, css
@@ -672,14 +672,35 @@ def _glyph_orientation_has_no_effect(style: dict[str, str], attr: str) -> bool:
     return normalized in {"", "auto", "0", "0deg", "0grad", "0rad", "0turn"}
 
 
-def _kerning_has_no_effect(style: dict[str, str]) -> bool:
+def _font_kerning_has_no_effect(element: ET.Element, style: dict[str, str]) -> bool:
+    value = style.get("font-kerning")
+    if value is None:
+        return False
+    normalized = value.strip().lower()
+    if normalized in {"", "auto", "normal"}:
+        return True
+    return _text_has_no_kerning_pairs(element) and normalized == "none"
+
+
+def _kerning_has_no_effect(element: ET.Element, style: dict[str, str]) -> bool:
     value = style.get("kerning")
     if value is None:
         return False
     normalized = value.strip().lower()
     if normalized in {"", "auto", "normal"}:
         return True
-    return _optional_length(value, "x", (0.0, 0.0)) == 0
+    return _optional_length(value, "x", (0.0, 0.0)) == 0 or _text_has_no_kerning_pairs(element)
+
+
+def _text_has_no_kerning_pairs(element: ET.Element) -> bool:
+    tag = _local_name(element.tag)
+    if tag == "text":
+        text = _svg_text_content(element)
+    elif tag == "tspan":
+        text = "".join(element.itertext())
+    else:
+        return False
+    return len(text) <= 1
 
 
 def _baseline_shift_has_no_effect(style: dict[str, str]) -> bool:
