@@ -164,7 +164,7 @@ const sampleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720
     <text x="90" y="90" text-rendering="optimizeLegibility" style="font-size:40;font-family:Arial;font-weight:700;fill:#17202a">Browser SVG coverage</text>
     <polygon id="tri" points="120,170 300,170 210,315"/>
     <polyline id="zig" points="390,170 460,250 530,170 600,250" style="fill:none;stroke:#dc2626;stroke-linejoin:miter;stroke-miterlimit:6"/>
-    <path id="box-path" d="M 690 170 L 900 170 L 900 315 L 690 315 Z" shape-rendering="crisp-edges" style="fill:#dcfce7;stroke:#15803d"/>
+    <path id="box-path" d="M 690 170 L 900 170 L 900 315 L 690 315 Z" shape-rendering="crisp-edges" paint-order="fill stroke markers" style="fill:#dcfce7;stroke:#15803d"/>
     <rect class="css-geom-rect"/>
     <circle class="css-geom-circle"/>
     <line class="css-geom-line"/>
@@ -1328,6 +1328,8 @@ function coverageAttributeIsSupportedOrNoop(element, tag, name, value, style, re
         return tag === "svg" && normalizeOverflow(value) === "hidden";
     if (name === "opacity")
         return parseAlpha(value) != null && visibleRenderingDescendantCount(element, refs, 2) < 2;
+    if (name === "paint-order")
+        return paintOrderHasNoEffect(tag, value, style);
     if (name === "pathLength")
         return normalizePathLength(value) != null;
     if (name === "preserveAspectRatio")
@@ -1430,6 +1432,23 @@ function coverageAttributeHasNoEffect(element, name, value) {
 }
 function renderingQualityHintHasNoEffect(value) {
     return ["auto", "crisp-edges", "crispedges", "geometricprecision", "optimizelegibility", "optimizequality", "optimizespeed", "pixelated"].includes(value);
+}
+function paintOrderHasNoEffect(tag, value, style) {
+    const normalized = value.trim().toLowerCase().split(/\s+/).join(" ");
+    if (["normal", "fill", "fill stroke", "fill stroke markers"].includes(normalized))
+        return true;
+    if (!["circle", "ellipse", "line", "path", "polygon", "polyline", "rect", "text", "tspan"].includes(tag))
+        return false;
+    const hasFill = tag !== "line" && style.fill !== "none" && style.fillAlpha !== 0;
+    const hasStroke = !!style.stroke && style.stroke !== "none" && style.strokeAlpha !== 0 && (style.strokeWidth ?? 1) > 0;
+    if (!(hasFill && hasStroke))
+        return true;
+    if (normalized === "markers fill stroke" || normalized === "fill markers stroke")
+        return !hasVisibleMarker(style);
+    return false;
+}
+function hasVisibleMarker(style) {
+    return !!(style.markerStart || style.markerMid || style.markerEnd);
 }
 function zeroLengthOrPercentage(value) {
     const parsed = parseCssLength(value, 100, Number.NaN);

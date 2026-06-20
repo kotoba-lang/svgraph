@@ -1167,6 +1167,10 @@ def test_web_source_and_package_metadata_use_svgraph_naming() -> None:
         assert '"crisp-edges"' in generated
         assert '"optimizelegibility"' in generated
         assert '"pixelated"' in generated
+        assert "function paintOrderHasNoEffect" in generated
+        assert "function hasVisibleMarker" in generated
+        assert '"fill stroke markers"' in generated
+        assert 'paint-order="fill stroke markers"' in generated
         assert 'id="length-glyphs-text"' in generated
         assert 'lengthAdjust=" SPACINGANDGLYPHS "' in generated
         assert 'id="word-spacing-text"' in generated
