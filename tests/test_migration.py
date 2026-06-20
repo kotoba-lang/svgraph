@@ -4,6 +4,7 @@ import ast
 from email.parser import Parser
 import json
 from pathlib import Path
+import re
 import tomllib
 
 
@@ -158,6 +159,25 @@ def test_project_urls_are_canonical_svgraph_locations() -> None:
     for source in [readme, migration, json.dumps(package_metadata), json.dumps(pyproject)]:
         assert "github.com/com-junkawasaki/drawingml-svg" not in source
         assert "com-junkawasaki.github.io/drawingml-svg" not in source
+
+
+def test_documented_python_api_examples_use_canonical_svgraph_imports() -> None:
+    root = Path(__file__).resolve().parents[1]
+    docs = {
+        "README.md": (root / "README.md").read_text(encoding="utf-8"),
+        "MIGRATION.md": (root / "MIGRATION.md").read_text(encoding="utf-8"),
+    }
+
+    for name, text in docs.items():
+        python_blocks = re.findall(r"```python\n(.*?)```", text, flags=re.DOTALL)
+        assert python_blocks, name
+        for block in python_blocks:
+            ast.parse(block)
+            assert "from svgraph" in block
+            assert "from drawingml_svg" not in block
+            assert "import drawingml_svg" not in block
+            assert "svg_to_ir" not in block
+            assert "svg_to_pptx_ir" not in block
 
 
 def test_pyproject_keeps_legacy_console_scripts_as_svgraph_compatibility_aliases() -> None:
