@@ -124,6 +124,28 @@ def test_github_templates_use_svgraph_repository_links() -> None:
     assert "drawingml-svg" not in pr_template
 
 
+def test_github_issue_templates_use_svgraph_surfaces() -> None:
+    bug_report = (_project_root() / ".github" / "ISSUE_TEMPLATE" / "bug_report.yml").read_text(encoding="utf-8")
+    feature_request = (_project_root() / ".github" / "ISSUE_TEMPLATE" / "feature_request.yml").read_text(encoding="utf-8")
+    combined = bug_report + "\n" + feature_request
+
+    for expected in [
+        "SVGraph",
+        "SVG to SVGraph",
+        "SVG to SVGraph presentation",
+        "SVGraph model",
+        "SVGraph presentation model",
+        "PresentationML/PPTX",
+        "Browser editor",
+    ]:
+        assert expected in combined
+
+    assert "PPTX" + "SVG" not in combined
+    assert "pptx" + "svg" not in combined
+    assert "drawingml-" + "svg" not in combined
+    assert "drawingml-" + "svg-web" not in combined
+
+
 def test_generated_distribution_metadata_preserves_svgraph_identity() -> None:
     pkg_info = _project_root() / "src" / "svgraph.egg-info" / "PKG-INFO"
     entry_points = _project_root() / "src" / "svgraph.egg-info" / "entry_points.txt"
