@@ -780,6 +780,7 @@ def test_changelog_documents_svgraph_migration_guard_surfaces() -> None:
         "public `com-junkawasaki/svgraph` repository identity and Pages URL",
         "stale local `*.egg-info` metadata",
         "browser type checking and committed Pages artifact freshness",
+        "every retained compatibility console script",
         "wheel metadata",
         "canonical `svgraph` surfaces",
         "canonical typed Python import package",
@@ -935,6 +936,25 @@ def test_migration_guide_covers_public_rename_surfaces() -> None:
         ("`pptxsvg` CLI command", "`svgraph-presentation` CLI command"),
     ]:
         assert f"{legacy} | {canonical}" in migration
+
+
+def test_migration_guide_covers_all_compatibility_console_scripts() -> None:
+    root = Path(__file__).resolve().parents[1]
+    migration = (root / "MIGRATION.md").read_text(encoding="utf-8")
+    scripts = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["scripts"]
+
+    expected_aliases = {
+        "drawingml-svg": "svgraph",
+        "drawingml-svg-analyze": "svgraph analyze",
+        "svg2dml": "svgraph svg2dml",
+        "dml2svg": "svgraph dml2svg",
+        "svg2pptx": "svgraph svg2pptx",
+    }
+
+    assert set(scripts) - {"svgraph"} == set(expected_aliases)
+    for alias, canonical in expected_aliases.items():
+        assert f"`{alias}` executable | `{canonical}`" in migration
+        assert scripts[alias] == "svgraph.cli:main"
 
 
 def test_migration_guide_module_mapping_matches_compatibility_wrappers() -> None:

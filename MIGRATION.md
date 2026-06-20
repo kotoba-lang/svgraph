@@ -20,6 +20,10 @@ Legacy names remain only as compatibility surfaces. New code should use the SVGr
 | `ir` CLI command | `svgraph` CLI command |
 | `pptxsvg` CLI command | `svgraph-presentation` CLI command |
 | `drawingml-svg` executable | `svgraph` executable |
+| `drawingml-svg-analyze` executable | `svgraph analyze` command |
+| `svg2dml` executable | `svgraph svg2dml` command |
+| `dml2svg` executable | `svgraph dml2svg` command |
+| `svg2pptx` executable | `svgraph svg2pptx` command |
 
 ## Python Imports
 
