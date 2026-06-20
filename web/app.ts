@@ -261,6 +261,7 @@ type SvgStyle = {
   fontStyle?: string;
   fontVariant?: string | null;
   textDecoration?: string;
+  textTransform?: string | null;
   textAnchor?: string | null;
   textBaseline?: string | null;
   baselineShift?: string | null;
@@ -339,7 +340,7 @@ const sampleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720
     <rect id="css-colors" x="740" y="615" width="120" height="50" style="color:orange;fill:currentColor;stroke:hsl(210 100% 50%)"/>
     <rect id="alpha-shape" x="580" y="615" width="120" height="50" style="fill:rgba(239,68,68,0.5);stroke:#2563ebcc;stroke-width:6;fill-opacity:0.8;stroke-opacity:0.5"/>
     <line id="dash-line" x1="120" y1="650" x2="300" y2="650" style="stroke:#0f766e;stroke-width:8;stroke-dasharray:18 10;stroke-linecap:round;stroke-linejoin:bevel"/>
-    <text id="rich-text" x="330" y="660" rotate="6" style="font-size:24;font-family:Arial;fill:#111827;font-variant:small-caps">Rich <tspan style="fill:#dc2626;font-weight:700;baseline-shift:super">red</tspan><tspan style="fill:#2563eb;font-style:italic;text-decoration:underline line-through;letter-spacing:2px"> blue</tspan></text>
+    <text id="rich-text" x="330" y="660" rotate="6" style="font-size:24;font-family:Arial;fill:#111827;font-variant:small-caps;text-transform:capitalize">rich <tspan style="fill:#dc2626;font-weight:700;baseline-shift:super;text-transform:uppercase">red</tspan><tspan style="fill:#2563eb;font-style:italic;text-decoration:underline line-through;letter-spacing:2px;text-transform:none"> blue</tspan></text>
     <text id="anchored-text" x="680" y="660" style="font-size:24;font-family:Arial;fill:#0f172a;text-anchor:middle;dominant-baseline:middle">Centered</text>
     <text id="length-text" x="735" y="95" textLength="170" lengthAdjust="spacing" style="font-size:22;font-family:Arial;fill:#334155">Wide gap</text>
     <text id="rtl-text" x="560" y="95" direction="rtl" style="font-size:22;font-family:Arial;fill:#0f766e">RTL
@@ -917,8 +918,9 @@ function textRuns(element: Element, inheritedStyle: SvgStyle): TextRun[] {
   const runs: TextRun[] = [];
   const append = (text: string, style: SvgStyle) => {
     if (!text) return;
+    const transformed = applyTextTransform(text, style.textTransform);
     runs.push({
-      text,
+      text: transformed,
       fill: style.fill ?? "#111827",
       fillAlpha: style.fillAlpha ?? null,
       fontSize: style.fontSize ?? inheritedStyle.fontSize ?? 18,
@@ -929,7 +931,7 @@ function textRuns(element: Element, inheritedStyle: SvgStyle): TextRun[] {
       underline: hasUnderline(style),
       strike: hasStrike(style),
       baselineShift: style.baselineShift ?? null,
-      letterSpacing: effectiveLetterSpacing(style, text, style.fontSize ?? inheritedStyle.fontSize ?? 18),
+      letterSpacing: effectiveLetterSpacing(style, transformed, style.fontSize ?? inheritedStyle.fontSize ?? 18),
     });
   };
   for (const node of Array.from(element.childNodes)) {
@@ -976,6 +978,19 @@ function normalizeFontVariant(value: string): string | null {
 
 function normalizeTextDirection(value: string): string | null {
   return value.trim().toLowerCase() === "rtl" ? "rtl" : null;
+}
+
+function normalizeTextTransform(value: string): string | null {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "none" || normalized === "normal") return null;
+  return ["uppercase", "lowercase", "capitalize"].includes(normalized) ? normalized : null;
+}
+
+function applyTextTransform(text: string, value: string | null | undefined): string {
+  if (value === "uppercase") return text.toUpperCase();
+  if (value === "lowercase") return text.toLowerCase();
+  if (value === "capitalize") return text.replace(/(^|[\s\-_])(\S)/g, (_match, prefix: string, char: string) => `${prefix}${char.toUpperCase()}`);
+  return text;
 }
 
 function normalizeTextAnchor(value: string): string | null {
@@ -1681,6 +1696,7 @@ function computedStyle(element: Element, inherited: SvgStyle, css: CssRule[] = [
   const fontStyle = value("font-style");
   const fontVariant = value("font-variant");
   const textDecoration = value("text-decoration-line") ?? value("text-decoration");
+  const textTransform = value("text-transform");
   const textAnchor = value("text-anchor");
   const textBaseline = value("dominant-baseline") ?? value("alignment-baseline");
   const baselineShift = value("baseline-shift");
@@ -1726,6 +1742,7 @@ function computedStyle(element: Element, inherited: SvgStyle, css: CssRule[] = [
   if (fontStyle != null) next.fontStyle = fontStyle;
   if (fontVariant != null) next.fontVariant = normalizeFontVariant(fontVariant);
   if (textDecoration != null) next.textDecoration = textDecoration;
+  if (textTransform != null) next.textTransform = normalizeTextTransform(textTransform);
   if (textAnchor != null) next.textAnchor = normalizeTextAnchor(textAnchor);
   if (textBaseline != null) next.textBaseline = normalizeTextBaseline(textBaseline);
   if (baselineShift != null) next.baselineShift = normalizeBaselineShift(baselineShift);
