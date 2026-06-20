@@ -53,6 +53,18 @@ FORBIDDEN_PUBLIC_LEGACY_STRINGS = (
     "drawingml-svg-svgraph.pptx",
 )
 
+FORBIDDEN_DISTRIBUTION_LEGACY_STRINGS = (
+    'name = "drawingml-svg"',
+    "Name: drawingml-svg",
+    "tmp/dist/drawingml_svg-",
+    "tmp/dist/drawingml-svg-",
+    "drawingml_svg-*.whl",
+    "drawingml_svg-*.tar.gz",
+    "drawingml-svg-*.whl",
+    "drawingml-svg-*.tar.gz",
+    "src/drawingml_svg.egg-info",
+)
+
 LEGACY_IMPORT_PATTERNS = (
     "from drawingml_svg",
     "import drawingml_svg",
@@ -103,6 +115,21 @@ def test_public_surfaces_use_svgraph_repo_and_artifact_names() -> None:
     assert unexpected == []
 
 
+def test_distribution_metadata_uses_svgraph_name() -> None:
+    root = Path(__file__).resolve().parents[1]
+    unexpected: list[str] = []
+    for path in _text_files(root):
+        relative = path.relative_to(root).as_posix()
+        if relative == "tests/test_migration.py":
+            continue
+        text = path.read_text(encoding="utf-8")
+        for term in FORBIDDEN_DISTRIBUTION_LEGACY_STRINGS:
+            if term in text:
+                unexpected.append(f"{relative}: {term}")
+
+    assert unexpected == []
+
+
 def test_canonical_code_paths_import_svgraph_package() -> None:
     root = Path(__file__).resolve().parents[1]
     unexpected: list[str] = []
@@ -126,5 +153,5 @@ def _text_files(root: Path) -> list[Path]:
         for path in root.rglob("*")
         if path.is_file()
         and path.suffix in suffixes
-        and not any(part in skipped for part in path.relative_to(root).parts)
+        and not any(part in skipped or part.endswith(".egg-info") for part in path.relative_to(root).parts)
     )
