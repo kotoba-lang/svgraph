@@ -909,6 +909,10 @@ def test_web_source_and_package_metadata_use_svgraph_naming() -> None:
         assert "function validateAssistantPatch" in generated
         assert "function assistantPatchDiff" in generated
         assert "function assistantDataDiff" in generated
+        assert "function applyAssistantPatch" in generated
+        assert "function applyAssistantPatchOp" in generated
+        assert "function elementByNodeId" in generated
+        assert "applyAssistantPatchBtn" in generated
         assert "patchValidation" in generated
         assert "patchDiff" in generated
         assert "patchProposal" in generated
@@ -1072,6 +1076,7 @@ def test_changelog_documents_svgraph_migration_guard_surfaces() -> None:
         "browser SVGraph sidecar JSON download",
         "browser assistant patch proposal validation",
         "browser assistant patch diff preview",
+        "browser assistant patch apply support",
         "web editor design package part schema documentation",
     ]:
         assert expected in changelog
@@ -1266,6 +1271,7 @@ def test_web_editor_design_uses_browser_only_svgraph_contract() -> None:
         "DrawingML fragments and `.pptx` without Python",
         "deterministic patch proposal/validation preview",
         "deterministic patch diff preview rows",
+        "apply validated SVGraph patch operations back into the canonical SVG source",
         "`SVGraphDocument`",
         "`SVGraphPresentation` projection",
         "`svgraph-presentation` view",

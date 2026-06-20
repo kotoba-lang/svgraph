@@ -615,6 +615,96 @@ function assistantUnsupportedDiff(op, field) {
 function patchValue(value) {
     return value === undefined ? null : value;
 }
+function applyAssistantPatch(svgText, proposal, svgraph) {
+    const validation = validateAssistantPatch(proposal, svgraph);
+    if (validation.status !== "accepted")
+        throw new Error(validation.errors.join("; "));
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(svgText, "image/svg+xml");
+    const error = doc.querySelector("parsererror");
+    if (error)
+        throw new Error((error.textContent || "").trim());
+    for (const op of proposal.ops) {
+        const element = elementByNodeId(doc.documentElement, op.node_id);
+        if (!element)
+            throw new Error(`missing SVGraph node ${op.node_id}`);
+        applyAssistantPatchOp(element, op);
+    }
+    return new XMLSerializer().serializeToString(doc.documentElement);
+}
+function applyAssistantPatchOp(element, op) {
+    if (op.op === "mark-slide") {
+        setDataAttribute(element, "kind", "slide");
+        if (typeof op.title === "string")
+            setDataAttribute(element, "title", op.title);
+    }
+    else if (op.op === "mark-table") {
+        setDataAttribute(element, "kind", "table");
+    }
+    else if (op.op === "mark-cell") {
+        setDataAttribute(element, "kind", "cell");
+    }
+    else if (op.op === "set-data" && typeof op.name === "string") {
+        setDataAttribute(element, op.name, op.value);
+    }
+    else if (op.op === "set-metadata" && typeof op.name === "string") {
+        setMetadataValue(element, op.name, patchValue(op.value));
+    }
+    else if (op.op === "bind-relation" && typeof op.from === "string" && typeof op.to === "string") {
+        setDataAttribute(element, "bind", `${op.from}->${op.to}`);
+    }
+    else if (op.op === "set-reading-order") {
+        setDataAttribute(element, "reading-order", op.value ?? op.order);
+    }
+}
+function elementByNodeId(root, nodeId) {
+    if (nodeId === "n0")
+        return root;
+    if (!nodeId.startsWith("n0."))
+        return null;
+    let current = root;
+    for (const rawIndex of nodeId.slice(3).split(".")) {
+        const index = Number(rawIndex);
+        if (!current || !Number.isInteger(index) || index < 0)
+            return null;
+        const children = Array.from(current.children).filter((child) => localName(child) !== "metadata");
+        current = children[index] ?? null;
+    }
+    return current;
+}
+function setDataAttribute(element, name, value) {
+    const attr = `data-${name}`;
+    if (value == null) {
+        element.removeAttribute(attr);
+    }
+    else {
+        element.setAttribute(attr, String(value));
+    }
+}
+function setMetadataValue(element, name, value) {
+    let meta = Array.from(element.children).find((child) => localName(child) === "metadata");
+    if (!meta) {
+        meta = element.ownerDocument.createElementNS(element.namespaceURI, "metadata");
+        element.insertBefore(meta, element.firstChild);
+    }
+    let payload = {};
+    const text = (meta.textContent || "").trim();
+    if (text) {
+        try {
+            payload = asObject(JSON.parse(text));
+        }
+        catch (_) {
+            payload = {};
+        }
+    }
+    if (value == null) {
+        delete payload[name];
+    }
+    else {
+        payload[name] = value;
+    }
+    meta.textContent = JSON.stringify(payload);
+}
 function svgToPptx(svgText) {
     const parser = new DOMParser();
     const doc = parser.parseFromString(svgText, "image/svg+xml");
@@ -3462,6 +3552,7 @@ function renderPanel() {
       <div class="list" style="margin-top:12px">
         ${diff.length ? diff.map((row) => `<div class="item"><div class="item-title">${escapeHtml(row.status)} · ${escapeHtml(row.op)} · ${escapeHtml(row.field)}</div><div class="item-meta">${escapeHtml(row.node_id)} · ${escapeHtml(JSON.stringify(row.before))} -> ${escapeHtml(JSON.stringify(row.after))}</div></div>`).join("") : '<div class="item"><div class="item-title">unchanged</div><div class="item-meta">No pending SVGraph patch changes.</div></div>'}
       </div>
+      <button class="btn primary" id="applyAssistantPatchBtn" type="button" style="margin-top:12px" ${validation.status === "accepted" && diff.some((row) => row.status === "pending") ? "" : "disabled"}>Apply Patch</button>
       <pre style="margin-top:12px">${escapeHtml(JSON.stringify({
             backendPolicy: state.webgpu ? "webgpu" : "wasm-or-disabled",
             allowedOps: assistantAllowedOps,
@@ -3471,6 +3562,13 @@ function renderPanel() {
             patchProposal: proposal,
             coverage: state.svgraph.coverage
         }, null, 2))}</pre>`;
+        const applyButton = document.getElementById("applyAssistantPatchBtn");
+        applyButton?.addEventListener("click", () => {
+            if (!state.svgraph)
+                return;
+            source.value = applyAssistantPatch(source.value, proposal, state.svgraph);
+            render();
+        });
     }
     else {
         panel.innerHTML = `<pre>${escapeHtml(JSON.stringify(state.svgraph, null, 2))}</pre>`;
