@@ -385,6 +385,28 @@ def test_migration_guide_covers_public_rename_surfaces() -> None:
         assert f"{legacy} | {canonical}" in migration
 
 
+def test_migration_guide_module_mapping_matches_compatibility_wrappers() -> None:
+    root = Path(__file__).resolve().parents[1]
+    migration = (root / "MIGRATION.md").read_text(encoding="utf-8")
+    module_pairs = {
+        "drawingml_svg.converter": "svgraph.converter",
+        "drawingml_svg.coverage": "svgraph.coverage",
+        "drawingml_svg.pptx": "svgraph.pptx",
+        "drawingml_svg.svgraph": "svgraph.model",
+    }
+
+    for legacy_module, canonical_module in module_pairs.items():
+        legacy_path = root / "src" / Path(*legacy_module.split(".")).with_suffix(".py")
+        canonical_path = root / "src" / Path(*canonical_module.split(".")).with_suffix(".py")
+        legacy_text = legacy_path.read_text(encoding="utf-8")
+
+        assert canonical_path.is_file()
+        assert f"`{legacy_module}` | `{canonical_module}`" in migration
+        assert f"from {canonical_module} import *" in legacy_text
+        assert "def " not in legacy_text
+        assert "class " not in legacy_text
+
+
 def test_migration_guide_cli_examples_use_canonical_svgraph_entry_points() -> None:
     root = Path(__file__).resolve().parents[1]
     migration = (root / "MIGRATION.md").read_text(encoding="utf-8")
