@@ -294,8 +294,10 @@ def test_release_checklist_covers_distribution_and_pptx_smoke() -> None:
     assert "python -m zipfile --test tmp/svgraph-complex.pptx" in release
     assert "python -m build --sdist --wheel -o tmp/dist" in release
     assert "tmp/dist/svgraph-*.whl" in release
-    assert "python -m svgraph --version" in release
-    assert "svgraph --version" in release
+    assert '"tmp/release-venv/bin/python -m svgraph"' in release
+    assert '"tmp/release-venv/bin/svgraph"' in release
+    assert 'actual_version="$($command --version)"' in release
+    assert 'test "$actual_version" = "$expected_version"' in release
     assert "import svgraph" in release
     assert "from svgraph import svg_to_svgraph, svg_to_svgraph_presentation" in release
     assert '"svg_to_" + "ir" not in svgraph.__all__' in release

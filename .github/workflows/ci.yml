@@ -304,13 +304,24 @@ jobs:
           PY
           python -m venv tmp/wheel-venv
           tmp/wheel-venv/bin/python -m pip install tmp/dist/svgraph-*.whl
-          tmp/wheel-venv/bin/python -m svgraph --version
-          tmp/wheel-venv/bin/svgraph --version
-          tmp/wheel-venv/bin/drawingml-svg --version
-          tmp/wheel-venv/bin/svg2dml --version
-          tmp/wheel-venv/bin/svg2pptx --version
-          tmp/wheel-venv/bin/dml2svg --version
-          tmp/wheel-venv/bin/drawingml-svg-analyze --version
+          expected_version="svgraph $(tmp/wheel-venv/bin/python - <<'PY'
+          from importlib.metadata import version
+
+          print(version("svgraph"))
+          PY
+          )"
+          for command in \
+            "tmp/wheel-venv/bin/python -m svgraph" \
+            "tmp/wheel-venv/bin/svgraph" \
+            "tmp/wheel-venv/bin/drawingml-svg" \
+            "tmp/wheel-venv/bin/svg2dml" \
+            "tmp/wheel-venv/bin/svg2pptx" \
+            "tmp/wheel-venv/bin/dml2svg" \
+            "tmp/wheel-venv/bin/drawingml-svg-analyze"
+          do
+            actual_version="$($command --version)"
+            test "$actual_version" = "$expected_version"
+          done
           tmp/wheel-venv/bin/svgraph analyze examples/coverage.svg
           tmp/wheel-venv/bin/python -m svgraph analyze examples/coverage.svg
           tmp/wheel-venv/bin/drawingml-svg-analyze examples/coverage.svg

@@ -203,13 +203,24 @@ PY
 ```bash
 python -m venv tmp/release-venv
 tmp/release-venv/bin/python -m pip install tmp/dist/svgraph-*.whl
-tmp/release-venv/bin/python -m svgraph --version
-tmp/release-venv/bin/svgraph --version
-tmp/release-venv/bin/drawingml-svg --version
-tmp/release-venv/bin/svg2dml --version
-tmp/release-venv/bin/svg2pptx --version
-tmp/release-venv/bin/dml2svg --version
-tmp/release-venv/bin/drawingml-svg-analyze --version
+expected_version="svgraph $(tmp/release-venv/bin/python - <<'PY'
+from importlib.metadata import version
+
+print(version("svgraph"))
+PY
+)"
+for command in \
+  "tmp/release-venv/bin/python -m svgraph" \
+  "tmp/release-venv/bin/svgraph" \
+  "tmp/release-venv/bin/drawingml-svg" \
+  "tmp/release-venv/bin/svg2dml" \
+  "tmp/release-venv/bin/svg2pptx" \
+  "tmp/release-venv/bin/dml2svg" \
+  "tmp/release-venv/bin/drawingml-svg-analyze"
+do
+  actual_version="$($command --version)"
+  test "$actual_version" = "$expected_version"
+done
 tmp/release-venv/bin/python - <<'PY'
 import svgraph
 from svgraph import svg_to_svgraph, svg_to_svgraph_presentation

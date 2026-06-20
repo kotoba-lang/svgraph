@@ -398,7 +398,8 @@ def test_module_execution_is_canonical_svgraph_entry_point() -> None:
     assert 'sys.argv[0] = "svgraph"' in main_source
     assert "from .cli import main" in main_source
     assert "raise SystemExit(main())" in main_source
-    assert "tmp/wheel-venv/bin/python -m svgraph --version" in workflow
+    assert '"tmp/wheel-venv/bin/python -m svgraph"' in workflow
+    assert 'actual_version="$($command --version)"' in workflow
     assert "tmp/wheel-venv/bin/python -m svgraph analyze examples/coverage.svg" in workflow
     assert "python -m svgraph --version" in readme
     assert "python -m svgraph --version" in migration
@@ -480,6 +481,7 @@ def test_readme_cli_block_covers_every_visible_svgraph_command() -> None:
 
 def test_generated_distribution_metadata_preserves_legacy_compatibility_entry_points(tmp_path) -> None:
     root = Path(__file__).resolve().parents[1]
+    scripts = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["scripts"]
     egg_info = root / "src" / "svgraph.egg-info"
     build_dir = root / "build"
     had_egg_info = egg_info.exists()
@@ -518,8 +520,8 @@ def test_generated_distribution_metadata_preserves_legacy_compatibility_entry_po
     assert metadata["License-Expression"] == "MIT"
     assert "LICENSE" in metadata.get_all("License-File")
     assert "Documentation, https://com-junkawasaki.github.io/svgraph/" in metadata.get_all("Project-URL")
-    assert "drawingml-svg = svgraph.cli:main" in entry_point_text
-    assert "drawingml-svg-analyze = svgraph.cli:main" in entry_point_text
+    for name, target in scripts.items():
+        assert f"{name} = {target}" in entry_point_text
     assert {"svgraph", "drawingml_svg"} <= top_level_names
 
 
@@ -529,8 +531,14 @@ def test_release_checklist_keeps_legacy_console_alias_smoke() -> None:
     scripts = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["scripts"]
 
     assert "pyproject.toml` and `package.json` have the intended version" in release
+    assert 'expected_version="svgraph $(' in release
+    assert 'from importlib.metadata import version' in release
+    assert 'print(version("svgraph"))' in release
+    assert 'actual_version="$($command --version)"' in release
+    assert 'test "$actual_version" = "$expected_version"' in release
+    assert '"tmp/release-venv/bin/python -m svgraph"' in release
     for executable in sorted(set(scripts) - {"svgraph"}):
-        assert f"tmp/release-venv/bin/{executable} --version" in release
+        assert f'"tmp/release-venv/bin/{executable}"' in release
 
 
 def test_release_checklist_verifies_public_svgraph_repo_identity() -> None:
@@ -650,6 +658,14 @@ def test_release_and_ci_distribution_smoke_use_svgraph_artifact_names() -> None:
     assert "tmp/wheel-legacy-svgraph.json" in workflow
     assert 'part_types = {part["kind"]: part["content_type"] for part in presentation["parts"]}' in workflow
     assert 'part["content_type"] == "application/vnd.openxmlformats-officedocument.presentationml.slide+xml"' in workflow
+    assert 'expected_version="svgraph $(tmp/wheel-venv/bin/python' in workflow
+    assert 'from importlib.metadata import version' in workflow
+    assert 'print(version("svgraph"))' in workflow
+    assert '"tmp/wheel-venv/bin/python -m svgraph"' in workflow
+    for executable in ["svgraph", "drawingml-svg", "svg2dml", "svg2pptx", "dml2svg", "drawingml-svg-analyze"]:
+        assert f'"tmp/wheel-venv/bin/{executable}"' in workflow
+    assert 'actual_version="$($command --version)"' in workflow
+    assert 'test "$actual_version" = "$expected_version"' in workflow
 
 
 def test_release_checklist_rebuilds_and_packages_svgraph_web_editor() -> None:
@@ -751,8 +767,9 @@ def test_release_checklist_smokes_all_canonical_svgraph_report_commands() -> Non
     ]:
         assert expected in release
 
-    assert "tmp/release-venv/bin/svgraph --version" in release
-    assert "tmp/release-venv/bin/python -m svgraph --version" in release
+    assert '"tmp/release-venv/bin/svgraph"' in release
+    assert 'actual_version="$($command --version)"' in release
+    assert '"tmp/release-venv/bin/python -m svgraph"' in release
 
 
 def test_contributor_checks_use_canonical_svgraph_commands_and_artifacts() -> None:
@@ -1086,6 +1103,7 @@ def test_changelog_documents_svgraph_migration_guard_surfaces() -> None:
         "canonical `svgraph.model` explicit exports",
         "canonical `svgraph` distribution version lookup",
         "canonical `svgraph` version identity for retained compatibility console scripts",
+        "CI and release wheel smoke checks that verify every retained console script",
         "browser SVGraph presentation package part content types",
         "SVGraph presentation package part schema documentation",
         "release and CI generated presentation JSON package part content types",
