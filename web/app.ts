@@ -512,6 +512,7 @@ const sampleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720
     <g id="scaled-stroke-group" transform="translate(320 640) scale(2)">
       <line id="scaled-stroke" x1="0" y1="0" x2="50" y2="0" style="stroke:#7c3aed;stroke-width:3;stroke-dasharray:9 3"/>
       <line id="non-scaling-stroke" x1="0" y1="18" x2="50" y2="18" style="stroke:#be185d;stroke-width:3;stroke-dasharray:9 3;vector-effect:non-scaling-stroke"/>
+      <text id="scaled-text" x="62" y="10" style="font-size:12;font-family:Arial;fill:#111827;stroke:#ffffff;stroke-width:1;vector-effect:non-scaling-stroke">Scale</text>
     </g>
     <text id="rich-text" x="330" y="660" rotate="6" style="font-size:24;font-family:Arial;fill:#111827;font-variant:small-caps;text-transform:capitalize">rich <tspan style="fill:#dc2626;font-weight:700;baseline-shift:super;text-transform:uppercase">red</tspan><tspan style="fill:#2563eb;font-style:italic;text-decoration:underline line-through;letter-spacing:2px;text-transform:none"> blue</tspan></text>
     <text id="anchored-text" x="680" y="660" style="font-size:24;font-family:Arial;fill:#0f172a;stroke:#ffffff;stroke-width:1;stroke-opacity:.5;text-anchor:middle;dominant-baseline:middle;text-decoration-line:underline;text-decoration-color:#dc2626;text-decoration-thickness:3px">Centered</text>
@@ -1003,16 +1004,18 @@ function elementToShape(element: Element, matrix: Matrix, style: SvgStyle, id: n
     };
   }
   if (tag === "text") {
-    const fontSize = style.fontSize ?? 18;
+    const textMetricScale = matrixScale(matrix);
+    const textStyle = scaledTextMetricsStyle(paintStyle, textMetricScale);
+    const fontSize = textStyle.fontSize ?? 18;
     const [textX, textY] = svgTextPosition(element, viewport);
     const [x, y] = point(matrix, textX, textY);
-    const runs = textRuns(element, paintStyle, viewport);
+    const runs = textRuns(element, paintStyle, viewport, textMetricScale);
     const text = runs.map((run) => run.text).join("").trim();
-    const width = Math.max(80, style.textLength ?? text.length * fontSize * 0.62 + wordSpacingExtra(style, text));
+    const width = Math.max(80 * textMetricScale, textStyle.textLength ?? text.length * fontSize * 0.62 + wordSpacingExtra(textStyle, text));
     const height = fontSize * 1.35;
-    const anchor = style.textAnchor ?? firstPositionedTspanAnchor(element, style);
-    const baseline = style.textBaseline ?? firstPositionedTspanBaseline(element, style);
-    const rotation = textRotation(element, style);
+    const anchor = textStyle.textAnchor ?? firstPositionedTspanAnchor(element, textStyle);
+    const baseline = textStyle.textBaseline ?? firstPositionedTspanBaseline(element, textStyle);
+    const rotation = textRotation(element, textStyle);
     return {
       id,
       kind: "text",
@@ -1023,25 +1026,25 @@ function elementToShape(element: Element, matrix: Matrix, style: SvgStyle, id: n
       width,
       height,
       text,
-      fill: paintStyle.fill ?? "#111827",
-      stroke: paintStyle.stroke ?? null,
-      strokeAlpha: paintStyle.strokeAlpha ?? null,
-      strokeWidth: paintStyle.strokeWidth ?? 1,
-      ...strokeStyle(paintStyle),
+      fill: textStyle.fill ?? "#111827",
+      stroke: textStyle.stroke ?? null,
+      strokeAlpha: textStyle.strokeAlpha ?? null,
+      strokeWidth: textStyle.strokeWidth ?? 1,
+      ...strokeStyle(textStyle),
       fontSize,
-      fontFamily: style.fontFamily || "Aptos",
-      bold: ["bold", "700", "800", "900"].includes(style.fontWeight || ""),
-      italic: isItalic(style),
-      fontVariant: style.fontVariant ?? null,
-      underline: hasUnderline(style),
-      underlineColor: style.textDecorationColor ?? null,
-      underlineAlpha: style.textDecorationAlpha ?? null,
-      underlineThickness: style.textDecorationThickness ?? null,
-      strike: hasStrike(style),
-      baselineShift: style.baselineShift ?? null,
-      letterSpacing: effectiveLetterSpacing(style, text, fontSize),
+      fontFamily: textStyle.fontFamily || "Aptos",
+      bold: ["bold", "700", "800", "900"].includes(textStyle.fontWeight || ""),
+      italic: isItalic(textStyle),
+      fontVariant: textStyle.fontVariant ?? null,
+      underline: hasUnderline(textStyle),
+      underlineColor: textStyle.textDecorationColor ?? null,
+      underlineAlpha: textStyle.textDecorationAlpha ?? null,
+      underlineThickness: textStyle.textDecorationThickness ?? null,
+      strike: hasStrike(textStyle),
+      baselineShift: textStyle.baselineShift ?? null,
+      letterSpacing: effectiveLetterSpacing(textStyle, text, fontSize),
       rotation,
-      direction: style.direction ?? null,
+      direction: textStyle.direction ?? null,
       anchor,
       baseline,
       runs,
@@ -1751,35 +1754,36 @@ function trimHtmlTextRuns(runs: TextRun[]): TextRun[] {
   })).filter((run) => run.text.length > 0);
 }
 
-function textRuns(element: Element, inheritedStyle: SvgStyle, viewport: Viewport = defaultViewport()): TextRun[] {
+function textRuns(element: Element, inheritedStyle: SvgStyle, viewport: Viewport = defaultViewport(), metricScale = 1): TextRun[] {
   const runs: TextRun[] = [];
   const rootPreserveSpace = xmlSpacePreserve(element);
   const append = (text: string, style: SvgStyle, preserveSpace: boolean, breakBefore = false) => {
     if (!text) return;
+    const runStyle = scaledTextMetricsStyle(style, metricScale);
     const transformed = applyTextTransform(text, style.textTransform);
     runs.push({
       text: transformed,
       breakBefore,
       preserveSpace,
-      fill: style.fill ?? "#111827",
-      fillAlpha: style.fillAlpha ?? null,
-      stroke: style.stroke ?? null,
-      strokeAlpha: style.strokeAlpha ?? null,
-      strokeWidth: style.strokeWidth ?? 1,
-      ...strokeStyle(style),
-      fontSize: style.fontSize ?? inheritedStyle.fontSize ?? 18,
-      fontFamily: style.fontFamily || inheritedStyle.fontFamily || "Aptos",
-      bold: ["bold", "700", "800", "900"].includes(style.fontWeight || ""),
-      italic: isItalic(style),
-      fontVariant: style.fontVariant ?? null,
-      underline: hasUnderline(style),
+      fill: runStyle.fill ?? "#111827",
+      fillAlpha: runStyle.fillAlpha ?? null,
+      stroke: runStyle.stroke ?? null,
+      strokeAlpha: runStyle.strokeAlpha ?? null,
+      strokeWidth: runStyle.strokeWidth ?? 1,
+      ...strokeStyle(runStyle),
+      fontSize: runStyle.fontSize ?? (inheritedStyle.fontSize == null ? 18 : inheritedStyle.fontSize * metricScale),
+      fontFamily: runStyle.fontFamily || inheritedStyle.fontFamily || "Aptos",
+      bold: ["bold", "700", "800", "900"].includes(runStyle.fontWeight || ""),
+      italic: isItalic(runStyle),
+      fontVariant: runStyle.fontVariant ?? null,
+      underline: hasUnderline(runStyle),
       underlineStyle: null,
-      underlineColor: style.textDecorationColor ?? null,
-      underlineAlpha: style.textDecorationAlpha ?? null,
-      underlineThickness: style.textDecorationThickness ?? null,
-      strike: hasStrike(style),
-      baselineShift: style.baselineShift ?? null,
-      letterSpacing: effectiveLetterSpacing(style, transformed, style.fontSize ?? inheritedStyle.fontSize ?? 18),
+      underlineColor: runStyle.textDecorationColor ?? null,
+      underlineAlpha: runStyle.textDecorationAlpha ?? null,
+      underlineThickness: runStyle.textDecorationThickness ?? null,
+      strike: hasStrike(runStyle),
+      baselineShift: runStyle.baselineShift ?? null,
+      letterSpacing: effectiveLetterSpacing(runStyle, transformed, runStyle.fontSize ?? (inheritedStyle.fontSize == null ? 18 : inheritedStyle.fontSize * metricScale)),
     });
   };
   for (const node of Array.from(element.childNodes)) {
@@ -3593,6 +3597,17 @@ function scaleDasharray(value: string, scale: number): string {
   const nums = dasharrayNumbers(value);
   if (!nums) return value;
   return nums.map((item) => formatNumber(item * scale)).join(" ");
+}
+
+function scaledTextMetricsStyle(style: SvgStyle, scale: number): SvgStyle {
+  if (Math.abs(scale - 1) < 1e-9) return style;
+  const next = { ...style };
+  if (next.fontSize != null) next.fontSize *= scale;
+  if (next.textLength != null) next.textLength *= scale;
+  if (next.letterSpacing != null) next.letterSpacing *= scale;
+  if (next.wordSpacing != null) next.wordSpacing *= scale;
+  if (next.textDecorationThickness != null) next.textDecorationThickness *= scale;
+  return next;
 }
 
 function normalizeVectorEffect(value: string): string | null {
