@@ -3323,7 +3323,7 @@ mustElement("sampleBtn").addEventListener("click", () => {
     source.value = sampleSvg;
     render();
 });
-mustElement("downloadIrBtn").addEventListener("click", () => {
+mustElement("downloadSVGraphBtn").addEventListener("click", () => {
     if (state.svgraph)
         downloadText("svgraph.json", JSON.stringify(state.svgraph, null, 2));
 });

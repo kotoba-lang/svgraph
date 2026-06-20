@@ -202,9 +202,12 @@ def test_pages_artifacts_use_svgraph_naming() -> None:
     )
 
     assert "SVGraph" in public_assets
+    assert "downloadSVGraphBtn" in public_assets
     assert "PPTXSVG" not in public_assets
     assert "pptxsvg" not in public_assets
     assert "presentation IR" not in public_assets
+    assert "downloadIrBtn" not in public_assets
+    assert "downloadSvgraphBtn" not in public_assets
     assert "downloadPptxsvg" not in public_assets
 
 
