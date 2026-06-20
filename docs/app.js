@@ -26,6 +26,8 @@ const sampleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720
       <rect id="reused-chip" width="170" height="70" rx="14"/>
       <clipPath id="bar-clip"><rect x="960" y="500" width="150" height="70"/></clipPath>
       <clipPath id="bbox-clip" clipPathUnits="objectBoundingBox"><rect x="0.15" y="0.15" width="0.7" height="0.7"/></clipPath>
+      <linearGradient id="linear-fallback"><stop offset="0" stop-color="#ef4444"/><stop offset="1" stop-color="#3b82f6"/></linearGradient>
+      <radialGradient id="radial-fallback"><stop offset="0" stop-color="#fef08a"/><stop offset="1" stop-color="#16a34a"/></radialGradient>
     </defs>
     <style>
       .accent-use { fill: #fce7f3; stroke: #be185d; stroke-width: 5; }
@@ -43,6 +45,7 @@ const sampleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720
     <circle class="css-circle" cx="1130" cy="388" r="48"/>
     <rect id="clipped-bar" x="930" y="500" width="250" height="70" style="fill:#fecaca;stroke:#991b1b;clip-path:url(#bar-clip)"/>
     <ellipse id="bbox-clipped-ellipse" cx="1090" cy="560" rx="80" ry="50" style="fill:#ede9fe;stroke:#6d28d9;clip-path:url(#bbox-clip)"/>
+    <rect id="gradient-fill" x="900" y="615" width="120" height="50" style="fill:url(#linear-fallback);stroke:url(#radial-fallback)"/>
     <use href="#reused-chip" class="accent-use" x="360" y="400"/>
     <g transform="translate(90 390) scale(1.5)">
       <rect id="scaled" width="160" height="80" style="fill:#dbeafe;stroke:#2563eb"/>
@@ -346,7 +349,7 @@ function extractShapes(root) {
         if (tag === "metadata" || tag === "defs" || tag === "style")
             return;
         const ownMatrix = multiply(matrix, transformMatrix(element.getAttribute("transform")));
-        const ownStyle = computedStyle(element, inheritedStyle, css);
+        const ownStyle = computedStyle(element, inheritedStyle, css, refs);
         if (tag === "use") {
             const href = element.getAttribute("href") || element.getAttribute("xlink:href") || "";
             const refId = href.startsWith("#") ? href.slice(1) : "";
@@ -375,7 +378,7 @@ function extractShapes(root) {
         for (const child of Array.from(element.children))
             walk(child, ownMatrix, ownStyle, refStack);
     };
-    const rootStyle = computedStyle(root, {}, css);
+    const rootStyle = computedStyle(root, {}, css, refs);
     for (const child of Array.from(root.children))
         walk(child, [1, 0, 0, 1, 0, 0], rootStyle, new Set());
     return shapes;
@@ -1056,7 +1059,7 @@ function num(element, name, fallback = 0) {
     const value = Number(element.getAttribute(name));
     return Number.isFinite(value) ? value : fallback;
 }
-function computedStyle(element, inherited, css = []) {
+function computedStyle(element, inherited, css = [], refs = new Map()) {
     const cssDeclarations = matchingCssDeclarations(element, css);
     const inlineDeclarations = styleDeclarations(element.getAttribute("style"));
     const value = (name) => inlineDeclarations[name] ?? element.getAttribute(name) ?? cssDeclarations[name] ?? null;
@@ -1072,9 +1075,9 @@ function computedStyle(element, inherited, css = []) {
     const markerStart = value("marker-start");
     const markerEnd = value("marker-end");
     if (fill != null)
-        next.fill = normalizePaint(fill);
+        next.fill = normalizePaint(fill, refs, next);
     if (stroke != null)
-        next.stroke = normalizePaint(stroke);
+        next.stroke = normalizePaint(stroke, refs, next);
     if (strokeWidth != null)
         next.strokeWidth = parseLength(strokeWidth, next.strokeWidth ?? 1);
     if (fontSize != null)
@@ -1152,11 +1155,93 @@ function styleDeclarations(style) {
         .filter((parts) => parts.length >= 2 && Boolean(parts[0]?.trim()))
         .map(([name, ...value]) => [name.trim(), value.join(":").trim()]));
 }
-function normalizePaint(value) {
+function normalizePaint(value, refs = new Map(), style = {}) {
     const trimmed = value.trim();
     if (!trimmed || trimmed === "none" || trimmed === "transparent")
         return null;
+    const ref = paintUrlRef(trimmed);
+    if (ref) {
+        return paintServerColor(ref.id, refs, style) ?? normalizePaint(ref.fallback, refs, style);
+    }
     return trimmed;
+}
+function paintServerColor(id, refs, style, seen = new Set()) {
+    if (seen.has(id))
+        return null;
+    const element = refs.get(id);
+    if (!element)
+        return null;
+    const tag = localName(element);
+    if (tag !== "linearGradient" && tag !== "radialGradient")
+        return null;
+    const nextSeen = new Set([...seen, id]);
+    const href = element.getAttribute("href") || element.getAttribute("xlink:href") || "";
+    const inheritedStops = href.startsWith("#") ? gradientStops(refs.get(href.slice(1)), refs, style, nextSeen) : [];
+    const stops = inheritedStops.concat(gradientStops(element, refs, style, nextSeen));
+    if (!stops.length)
+        return null;
+    if (tag === "radialGradient")
+        return stops[stops.length - 1] ?? null;
+    const rgb = stops.map(hexToRgb).filter((item) => Boolean(item));
+    if (!rgb.length)
+        return null;
+    const count = rgb.length;
+    return rgbToHex([
+        Math.round(rgb.reduce((sum, item) => sum + item[0], 0) / count),
+        Math.round(rgb.reduce((sum, item) => sum + item[1], 0) / count),
+        Math.round(rgb.reduce((sum, item) => sum + item[2], 0) / count),
+    ]);
+}
+function gradientStops(element, refs, style, seen) {
+    if (!element)
+        return [];
+    const tag = localName(element);
+    if (tag !== "linearGradient" && tag !== "radialGradient")
+        return [];
+    const colors = [];
+    const href = element.getAttribute("href") || element.getAttribute("xlink:href") || "";
+    if (href.startsWith("#")) {
+        const inherited = refs.get(href.slice(1));
+        const inheritedId = inherited?.getAttribute("id") || "";
+        if (inherited && inheritedId && !seen.has(inheritedId))
+            colors.push(...gradientStops(inherited, refs, style, new Set([...seen, inheritedId])));
+    }
+    for (const stop of Array.from(element.children)) {
+        if (localName(stop) !== "stop")
+            continue;
+        const declarations = styleDeclarations(stop.getAttribute("style"));
+        const color = declarations["stop-color"] ?? stop.getAttribute("stop-color") ?? "#000000";
+        const normalized = normalizeStopColor(color, style);
+        if (normalized)
+            colors.push(normalized);
+    }
+    return colors;
+}
+function normalizeStopColor(value, style) {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === "none" || trimmed === "transparent")
+        return null;
+    if (trimmed === "currentColor")
+        return style.fill ?? style.stroke ?? "#000000";
+    if (/^#[0-9a-fA-F]{3}$/.test(trimmed))
+        return `#${trimmed.slice(1).split("").map((char) => char + char).join("")}`;
+    if (/^#[0-9a-fA-F]{6}/.test(trimmed))
+        return trimmed.slice(0, 7);
+    return null;
+}
+function paintUrlRef(value) {
+    const match = value.match(/^url\(\s*['"]?#([^'")\s]+)['"]?\s*\)\s*(.*)$/);
+    return match ? { id: match[1], fallback: match[2]?.trim() || "" } : null;
+}
+function hexToRgb(value) {
+    const normalized = normalizeStopColor(value, {});
+    if (!normalized)
+        return null;
+    const raw = normalized.slice(1);
+    return [Number.parseInt(raw.slice(0, 2), 16), Number.parseInt(raw.slice(2, 4), 16), Number.parseInt(raw.slice(4, 6), 16)];
+}
+function rgbToHex(rgb) {
+    return `#${rgb.map((value) => clamp(Math.round(value), 0, 255).toString(16).padStart(2, "0")).join("")}`;
 }
 function parseLength(value, fallback = 0) {
     if (!value)
