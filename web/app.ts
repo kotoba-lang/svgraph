@@ -463,6 +463,9 @@ const sampleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720
       <symbol id="viewbox-icon" viewBox="-5 -5 10 10">
         <circle cx="0" cy="0" r="5" fill="#2563eb"/>
       </symbol>
+      <symbol id="context-badge" viewBox="0 0 20 10">
+        <rect id="context-paint-rect" width="20" height="10" fill="context-stroke" stroke="context-fill" stroke-width="2"/>
+      </symbol>
     </defs>
     <style>
       :root { --browser-brand: #0ea5e9; --browser-line: #334155; }
@@ -515,6 +518,7 @@ line</text>
     <circle id="pattern-fill" cx="1080" cy="640" r="32" style="fill:url(#pattern-fallback);stroke:#334155"/>
     <use href="#reused-chip" class="accent-use" x="360" y="400"/>
     <use id="symbol-viewbox-use" href="#viewbox-icon" x="500" y="385" width="80" height="40" preserveAspectRatio="xMaxYMax slice"/>
+    <use id="context-paint-use" href="#context-badge" x="455" y="600" width="80" height="40" fill="#123456" stroke="#abcdef"/>
     <svg id="nested-viewbox" x="610" y="385" width="80" height="40" viewBox="0 0 20 10" preserveAspectRatio="none">
       <rect x="50%" y="50%" width="25%" height="50%" fill="#0f766e" stroke="#064e3b" stroke-width="1"/>
     </svg>
@@ -3642,6 +3646,8 @@ function normalizePaint(value: string, refs: Map<string, Element> = new Map(), s
 function normalizePaintValue(value: string, refs: Map<string, Element> = new Map(), style: SvgStyle = {}): { color: string; alpha: number | null } | null {
   const trimmed = value.trim();
   if (!trimmed || trimmed === "none" || trimmed === "transparent") return null;
+  const contextPaint = contextPaintValue(trimmed, style);
+  if (contextPaint) return contextPaint;
   const ref = paintUrlRef(trimmed);
   if (ref) {
     const server = paintServerColor(ref.id, refs, style);
@@ -3650,6 +3656,13 @@ function normalizePaintValue(value: string, refs: Map<string, Element> = new Map
   }
   const color = parseCssColor(trimmed, style) ?? trimmed;
   return { color, alpha: cssColorAlpha(trimmed) };
+}
+
+function contextPaintValue(value: string, style: SvgStyle): { color: string; alpha: number | null } | null {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "context-fill" && style.fill) return { color: style.fill, alpha: style.fillAlpha ?? cssColorAlpha(style.fill) };
+  if (normalized === "context-stroke" && style.stroke) return { color: style.stroke, alpha: style.strokeAlpha ?? cssColorAlpha(style.stroke) };
+  return null;
 }
 
 function paintServerColor(id: string, refs: Map<string, Element>, style: SvgStyle, seen: Set<string> = new Set()): string | null {
