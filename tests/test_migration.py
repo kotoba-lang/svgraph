@@ -1129,6 +1129,10 @@ def test_web_source_and_package_metadata_use_svgraph_naming() -> None:
         assert "function rectRadius" in generated
         assert "optionalNonnegativeCascadedGeom" in generated
         assert 'rx="-3" ry="8"' in generated
+        assert "function normalizeMarkerReference" in generated
+        assert "markerRefIsArrowLike(value, refs)" in generated
+        assert 'id="dot-marker"' in generated
+        assert 'id="non-arrow-marker-line"' in generated
         assert "css-use-frame" in generated
         assert "css-nested-frame" in generated
         assert "svgTextPosition(element, viewport, css, paintStyle)" in generated
@@ -1390,6 +1394,7 @@ def test_changelog_documents_svgraph_migration_guard_surfaces() -> None:
         "browser `clipPathUnits` values",
         "browser negative `stroke-width` fallback",
         "browser negative SVG rect radius fallback",
+        "browser marker export with arrow-like SVG marker references",
         "web editor design package part schema documentation",
         "compatibility submodule public-surface guards",
         "installed compatibility submodules prove their canonical `__all__` and callable parity",

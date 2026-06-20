@@ -582,6 +582,7 @@ const sampleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720
         <rect width="12" height="12" fill="#f97316"/>
         <circle cx="6" cy="6" r="4" fill="#22c55e"/>
       </pattern>
+      <marker id="dot-marker" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></marker>
       <symbol id="viewbox-icon" viewBox="-5 -5 10 10">
         <circle cx="0" cy="0" r="5" fill="#2563eb"/>
       </symbol>
@@ -624,6 +625,7 @@ const sampleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720
     <rect id="geometry-lengths" x="calc(50% - 80px)" y="42%" width="10%" height="8%" style="fill:#ecfccb;stroke:#4d7c0f;stroke-width:2pt"/>
     <rect id="negative-radius-fallback" x="900" y="340" width="90" height="44" rx="-3" ry="8" style="fill:#fef9c3;stroke:#854d0e"/>
     <line id="marked-line" x1="980" y1="185" x2="1130" y2="260" style="stroke:#7c3aed;stroke-width:8;marker-end:url(#arrow)"/>
+    <line id="non-arrow-marker-line" x1="980" y1="280" x2="1130" y2="300" style="stroke:#475569;stroke-width:5;marker-end:url(#dot-marker)"/>
     <image id="pixel" class="css-image-frame" preserveAspectRatio="xMidYMid slice" opacity="35%" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/luzQnAAAAABJRU5ErkJggg=="/>
     <circle class="css-circle" cx="1130" cy="388" r="48"/>
     <rect id="clipped-bar" x="930" y="500" width="250" height="70" style="fill:#fecaca;stroke:#991b1b;clip-path:url(#bar-clip)"/>
@@ -1854,7 +1856,15 @@ function markerRefIsArrowLike(value: string, refs: Map<string, Element>): boolea
   const marker = refs.get(ref);
   if (!marker || localName(marker) !== "marker") return false;
   const child = Array.from(marker.children).find((item) => ["path", "polygon", "polyline"].includes(localName(item)));
-  return child != null;
+  if (!child) return false;
+  const tag = localName(child);
+  if (tag === "path") return unsupportedPathCommands(child.getAttribute("d") || "").length === 0 && parseBasicPath(child.getAttribute("d") || "", [1, 0, 0, 1, 0, 0]) != null;
+  return parsePoints(child.getAttribute("points") || "").length >= 2;
+}
+
+function normalizeMarkerReference(value: string, refs: Map<string, Element>): boolean {
+  if (value.trim().toLowerCase() === "none") return false;
+  return markerRefIsArrowLike(value, refs);
 }
 
 function clipPathHasRect(value: string, refs: Map<string, Element>): boolean {
@@ -4726,18 +4736,18 @@ function computedStyle(element: Element, inherited: SvgStyle, css: CssRule[] = [
   if (transformOrigin != null) next.transformOrigin = transformOrigin.trim();
   if (vectorEffect != null) next.vectorEffect = normalizeVectorEffect(vectorEffect);
   if (marker != null) {
-    const enabled = marker !== "none";
+    const enabled = normalizeMarkerReference(marker, refs);
     next.markerStart = enabled;
     next.markerMid = enabled;
     next.markerMidSource = enabled ? "marker" : null;
     next.markerEnd = enabled;
   }
-  if (markerStart != null) next.markerStart = markerStart !== "none";
+  if (markerStart != null) next.markerStart = normalizeMarkerReference(markerStart, refs);
   if (markerMid != null) {
-    next.markerMid = markerMid !== "none";
+    next.markerMid = normalizeMarkerReference(markerMid, refs);
     next.markerMidSource = next.markerMid ? "marker-mid" : null;
   }
-  if (markerEnd != null) next.markerEnd = markerEnd !== "none";
+  if (markerEnd != null) next.markerEnd = normalizeMarkerReference(markerEnd, refs);
   return next;
 }
 
