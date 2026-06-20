@@ -5,7 +5,7 @@ Use this checklist when publishing a new `svgraph` release.
 ## Before tagging
 
 - Confirm `CHANGELOG.md` has a dated section for the release and an empty `Unreleased` section for the next cycle.
-- Confirm `pyproject.toml` has the intended version.
+- Confirm `pyproject.toml` and `package.json` have the intended version.
 - Run the local checks from `CONTRIBUTING.md`.
 - Regenerate and inspect the PPTX smoke fixture:
 

@@ -168,6 +168,7 @@ def test_generated_distribution_metadata_preserves_legacy_compatibility_entry_po
 def test_release_checklist_keeps_legacy_console_alias_smoke() -> None:
     release = (Path(__file__).resolve().parents[1] / "RELEASE.md").read_text(encoding="utf-8")
 
+    assert "pyproject.toml` and `package.json` have the intended version" in release
     assert "drawingml-svg --version" in release
 
 
@@ -214,14 +215,19 @@ def test_pages_artifacts_use_svgraph_naming() -> None:
 
 def test_web_source_and_package_metadata_use_svgraph_naming() -> None:
     root = Path(__file__).resolve().parents[1]
+    pyproject = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
     package_json = (root / "package.json").read_text(encoding="utf-8")
     package_lock = (root / "package-lock.json").read_text(encoding="utf-8")
     package_metadata = json.loads(package_json)
+    lock_metadata = json.loads(package_lock)
     html = (root / "docs" / "index.html").read_text(encoding="utf-8")
     source = (root / "web" / "app.ts").read_text(encoding="utf-8")
 
     assert '"name": "svgraph-web"' in package_json
     assert '"name": "svgraph-web"' in package_lock
+    assert package_metadata["version"] == pyproject["project"]["version"]
+    assert lock_metadata["version"] == package_metadata["version"]
+    assert lock_metadata["packages"][""]["version"] == package_metadata["version"]
     assert package_metadata["homepage"] == "https://com-junkawasaki.github.io/svgraph/"
     assert package_metadata["repository"] == {
         "type": "git",
