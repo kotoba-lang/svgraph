@@ -276,6 +276,7 @@ type TableBorder = {
 type Matrix = [number, number, number, number, number, number];
 
 type SvgStyle = {
+  customProperties?: Record<string, string>;
   fill?: string | null;
   fillAlpha?: number | null;
   stroke?: string | null;
@@ -414,8 +415,11 @@ const sampleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720
       </pattern>
     </defs>
     <style>
+      :root { --browser-brand: #0ea5e9; --browser-line: #334155; }
       .accent-use { fill: #fce7f3; stroke: #be185d; stroke-width: 5; }
       g .css-circle { fill: #e0f2fe; stroke: #0369a1; stroke-width: 5; }
+      g.var-theme { fill: var(--browser-brand); stroke: var(--browser-line); stroke-width: 5; }
+      .var-theme .inherit-box { fill: inherit; stroke: currentColor; color: #dc2626; }
     </style>
     <rect width="1280" height="720" fill="#ffffff" stroke="none"/>
     <text x="90" y="90" style="font-size:40;font-family:Arial;font-weight:700;fill:#17202a">Browser SVG coverage</text>
@@ -430,6 +434,7 @@ const sampleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720
     <rect id="clipped-bar" x="930" y="500" width="250" height="70" style="fill:#fecaca;stroke:#991b1b;clip-path:url(#bar-clip)"/>
     <ellipse id="bbox-clipped-ellipse" cx="1090" cy="560" rx="80" ry="50" style="fill:#ede9fe;stroke:#6d28d9;clip-path:url(#bbox-clip)"/>
     <rect id="css-colors" x="740" y="615" width="120" height="50" style="color:orange;fill:currentColor;stroke:hsl(210 100% 50%)"/>
+    <g class="var-theme"><rect class="inherit-box" x="910" y="88" width="105" height="52"/></g>
     <rect id="alpha-shape" x="580" y="615" width="120" height="50" style="fill:rgba(239,68,68,0.5);stroke:#2563ebcc;stroke-width:6;fill-opacity:0.8;stroke-opacity:0.5"/>
     <line id="dash-line" x1="120" y1="650" x2="300" y2="650" style="stroke:#0f766e;stroke-width:8;stroke-dasharray:18 10;stroke-linecap:round;stroke-linejoin:bevel"/>
     <text id="rich-text" x="330" y="660" rotate="6" style="font-size:24;font-family:Arial;fill:#111827;font-variant:small-caps;text-transform:capitalize">rich <tspan style="fill:#dc2626;font-weight:700;baseline-shift:super;text-transform:uppercase">red</tspan><tspan style="fill:#2563eb;font-style:italic;text-decoration:underline line-through;letter-spacing:2px;text-transform:none"> blue</tspan></text>
@@ -802,7 +807,8 @@ function extractShapes(root: Element): Shape[] {
     }
     for (const child of Array.from(element.children)) walk(child, ownMatrix, ownStyle, refStack);
   };
-  const rootStyle = computedStyle(root, {}, css, refs);
+  const baseStyle = scopeRoot === root ? {} : computedStyle(scopeRoot, {}, css, refs);
+  const rootStyle = computedStyle(root, baseStyle, css, refs);
   for (const child of Array.from(root.children)) walk(child, [1, 0, 0, 1, 0, 0], rootStyle, new Set());
   return shapes;
 }
@@ -1290,9 +1296,9 @@ function htmlTableCellStyle(cell: Element, table: Element, inheritedStyle: SvgSt
 }
 
 function htmlElementStyle(element: Element, inheritedStyle: SvgStyle, css: CssRule[]): SvgStyle {
-  const declarations = cascadedDeclarations(element, css, htmlAttributeAliases(element));
+  const declarations = resolvedCascadedDeclarations(element, css, inheritedStyle, htmlAttributeAliases(element));
   const value = (name: string): string | null => declarations[name] ?? null;
-  const next: SvgStyle = { ...inheritedStyle };
+  const next: SvgStyle = { ...inheritedStyle, customProperties: customPropertiesFromDeclarations(declarations, inheritedStyle) };
   const color = value("color");
   const background = value("background-color") ?? value("background") ?? element.getAttribute("bgcolor");
   const border = value("border") ?? (element.hasAttribute("border") ? `${element.getAttribute("border") || "1"} solid` : null);
@@ -1489,7 +1495,7 @@ function htmlStyleValue(element: Element, name: string): string | null {
 }
 
 function htmlCssValue(element: Element, name: string, css: CssRule[]): string | null {
-  return cascadedDeclarations(element, css, htmlAttributeAliases(element))[name] ?? null;
+  return resolvedCascadedDeclarations(element, css, {}, htmlAttributeAliases(element))[name] ?? null;
 }
 
 function htmlAttributeAliases(element: Element): Record<string, string> {
@@ -2456,9 +2462,9 @@ function num(element: Element, name: string, fallback = 0): number {
 }
 
 function computedStyle(element: Element, inherited: SvgStyle, css: CssRule[] = [], refs: Map<string, Element> = new Map()): SvgStyle {
-  const declarations = cascadedDeclarations(element, css);
+  const declarations = resolvedCascadedDeclarations(element, css, inherited);
   const value = (name: string): string | null => declarations[name] ?? null;
-  const next: SvgStyle = { ...inherited };
+  const next: SvgStyle = { ...inherited, customProperties: customPropertiesFromDeclarations(declarations, inherited) };
   const color = value("color");
   const fill = value("fill");
   const stroke = value("stroke");
@@ -2573,6 +2579,137 @@ function collectRefs(root: Element): Map<string, Element> {
 
 function matchingCssDeclarations(element: Element, css: CssRule[]): Record<string, string> {
   return cascadedDeclarations(element, css, {}, false);
+}
+
+function resolvedCascadedDeclarations(element: Element, css: CssRule[], inherited: SvgStyle, aliases: Record<string, string> = {}, includePresentation = true): Record<string, string> {
+  const declarations = cascadedDeclarations(element, css, aliases, includePresentation);
+  const customProperties = customPropertiesFromDeclarations(declarations, inherited);
+  const resolved: Record<string, string> = {};
+  for (const [name, value] of Object.entries(declarations)) {
+    if (name.startsWith("--")) {
+      resolved[name] = resolveCssVars(value, customProperties);
+      continue;
+    }
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "initial") continue;
+    if (normalized === "inherit" || normalized === "unset") {
+      const inheritedValue = cssValueFromStyle(inherited, name);
+      if (inheritedValue != null) resolved[name] = inheritedValue;
+      continue;
+    }
+    resolved[name] = resolveCssVars(value, customProperties);
+  }
+  return resolved;
+}
+
+function customPropertiesFromDeclarations(declarations: Record<string, string>, inherited: SvgStyle): Record<string, string> {
+  const custom = { ...(inherited.customProperties ?? {}) };
+  for (const [name, value] of Object.entries(declarations)) {
+    if (name.startsWith("--")) custom[name] = resolveCssVars(value, custom);
+  }
+  return custom;
+}
+
+function resolveCssVars(value: string, customProperties: Record<string, string>): string {
+  let resolved = value;
+  for (let depth = 0; depth < 8 && resolved.includes("var("); depth += 1) {
+    const next = resolveOneCssVar(resolved, customProperties);
+    if (next === resolved) break;
+    resolved = next;
+  }
+  return resolved;
+}
+
+function resolveOneCssVar(value: string, customProperties: Record<string, string>): string {
+  const start = value.indexOf("var(");
+  if (start < 0) return value;
+  let depth = 1;
+  let cursor = start + 4;
+  while (cursor < value.length && depth > 0) {
+    if (value[cursor] === "(") depth += 1;
+    if (value[cursor] === ")") depth -= 1;
+    cursor += 1;
+  }
+  if (depth !== 0) return value;
+  const body = value.slice(start + 4, cursor - 1);
+  const [name, fallback] = splitCssVarBody(body);
+  const replacement = customProperties[name.trim()] ?? fallback?.trim() ?? `var(${body})`;
+  return `${value.slice(0, start)}${replacement}${value.slice(cursor)}`;
+}
+
+function splitCssVarBody(body: string): [string, string | null] {
+  const parts = splitCssTopLevel(body, ",");
+  const name = parts.shift()?.trim() || "";
+  return [name, parts.length ? parts.join(",").trim() : null];
+}
+
+function cssValueFromStyle(style: SvgStyle, name: string): string | null {
+  if (name.startsWith("--")) return style.customProperties?.[name] ?? null;
+  switch (name) {
+    case "fill":
+    case "background":
+    case "background-color":
+      return style.fill ?? null;
+    case "stroke":
+    case "border-color":
+      return style.stroke ?? null;
+    case "color":
+      return style.color ?? null;
+    case "stroke-width":
+    case "border-width":
+      return style.strokeWidth == null ? null : String(style.strokeWidth);
+    case "stroke-linecap":
+      return style.strokeLineCap ?? null;
+    case "stroke-linejoin":
+      return style.strokeLineJoin ?? null;
+    case "stroke-dasharray":
+      return style.strokeDasharray ?? null;
+    case "font-size":
+      return style.fontSize == null ? null : String(style.fontSize);
+    case "font-family":
+      return style.fontFamily ?? null;
+    case "font-weight":
+      return style.fontWeight ?? null;
+    case "font-style":
+      return style.fontStyle ?? null;
+    case "font-variant":
+      return style.fontVariant ?? null;
+    case "text-decoration":
+    case "text-decoration-line":
+      return style.textDecoration ?? null;
+    case "text-transform":
+      return style.textTransform ?? null;
+    case "text-anchor":
+    case "text-align":
+      return style.textAnchor ?? style.tableCellTextAlign ?? null;
+    case "dominant-baseline":
+    case "alignment-baseline":
+      return style.textBaseline ?? null;
+    case "baseline-shift":
+      return style.baselineShift ?? null;
+    case "letter-spacing":
+      return style.letterSpacing == null ? null : String(style.letterSpacing);
+    case "word-spacing":
+      return style.wordSpacing == null ? null : String(style.wordSpacing);
+    case "direction":
+      return style.direction ?? null;
+    case "padding":
+      return style.tableCellPadding == null ? null : String(style.tableCellPadding);
+    case "padding-left":
+      return style.tableCellPaddingLeft == null ? null : String(style.tableCellPaddingLeft);
+    case "padding-right":
+      return style.tableCellPaddingRight == null ? null : String(style.tableCellPaddingRight);
+    case "padding-top":
+      return style.tableCellPaddingTop == null ? null : String(style.tableCellPaddingTop);
+    case "padding-bottom":
+      return style.tableCellPaddingBottom == null ? null : String(style.tableCellPaddingBottom);
+    case "vertical-align":
+      return style.tableCellVerticalAlign ?? null;
+    case "white-space":
+      return style.tableCellNowrap ? "nowrap" : null;
+    default:
+      return null;
+  }
 }
 
 function cascadedDeclarations(element: Element, css: CssRule[], aliases: Record<string, string> = {}, includePresentation = true): Record<string, string> {
