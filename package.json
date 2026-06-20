@@ -1,6 +1,14 @@
 {
   "name": "svgraph-web",
   "version": "0.1.0",
+  "description": "Browser-only SVGraph editor and SVG to PresentationML/PPTX converter.",
+  "keywords": [
+    "svg",
+    "svgraph",
+    "presentationml",
+    "pptx",
+    "web"
+  ],
   "private": true,
   "type": "module",
   "homepage": "https://com-junkawasaki.github.io/svgraph/",

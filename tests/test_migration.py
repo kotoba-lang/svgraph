@@ -596,6 +596,8 @@ def test_web_source_and_package_metadata_use_svgraph_naming() -> None:
     assert package_metadata["version"] == pyproject["project"]["version"]
     assert lock_metadata["version"] == package_metadata["version"]
     assert lock_metadata["packages"][""]["version"] == package_metadata["version"]
+    assert package_metadata["description"] == "Browser-only SVGraph editor and SVG to PresentationML/PPTX converter."
+    assert {"svg", "svgraph", "presentationml", "pptx", "web"} <= set(package_metadata["keywords"])
     assert package_metadata["homepage"] == "https://com-junkawasaki.github.io/svgraph/"
     assert package_metadata["repository"] == {
         "type": "git",
