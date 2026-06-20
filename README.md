@@ -116,11 +116,12 @@ PYTHONPATH=src python examples/make_pptx.py examples/svgraph.svg -o tmp/svgraph-
 ## Python API
 
 ```python
-from svgraph import drawingml_to_svg, svg_to_drawingml, svg_to_pptx
+from svgraph import drawingml_to_svg, svg_to_drawingml, svg_to_pptx, svg_to_pptx_bytes
 
 dml = svg_to_drawingml("<svg viewBox='0 0 100 50'><rect x='5' y='5' width='40' height='20'/></svg>")
 svg = drawingml_to_svg(dml)
 svg_to_pptx("<svg><rect width='100' height='50'/></svg>", "deck.pptx")
+pptx_bytes = svg_to_pptx_bytes("<svg><rect width='100' height='50'/></svg>")
 ```
 
 ```python

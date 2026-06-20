@@ -37,8 +37,8 @@ from svgraph import (
     svg_to_pptx,
     svg_to_pptx_bytes,
     svg_to_svgraph,
+    svg_to_svgraph_presentation,
 )
-from svgraph.model import svg_to_svgraph_presentation
 ```
 
 The `drawingml_svg` package remains installable for existing callers, but its main modules are compatibility wrappers over `svgraph`. Deprecated pre-SVGraph IR APIs continue to emit `DeprecationWarning` and point callers to `svgraph.model`.

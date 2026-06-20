@@ -285,8 +285,22 @@ def test_migration_guide_python_import_example_covers_top_level_svgraph_api() ->
         for alias in node.names
     }
 
-    assert imported_from_svgraph == set(CANONICAL_TOP_LEVEL_API) - {"svg_to_svgraph_presentation"}
-    assert "from svgraph.model import svg_to_svgraph_presentation" in import_block
+    assert imported_from_svgraph == set(CANONICAL_TOP_LEVEL_API)
+
+
+def test_readme_python_examples_cover_top_level_svgraph_api() -> None:
+    root = Path(__file__).resolve().parents[1]
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    python_blocks = re.findall(r"```python\n(.*?)```", readme, flags=re.DOTALL)
+    imported_from_svgraph = {
+        alias.name
+        for block in python_blocks
+        for node in ast.parse(block).body
+        if isinstance(node, ast.ImportFrom) and node.module == "svgraph"
+        for alias in node.names
+    }
+
+    assert imported_from_svgraph == set(CANONICAL_TOP_LEVEL_API)
 
 
 def test_pyproject_keeps_legacy_console_scripts_as_svgraph_compatibility_aliases() -> None:
