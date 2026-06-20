@@ -83,6 +83,9 @@ const sampleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720
       g .css-circle { fill: #e0f2fe; stroke: #0369a1; stroke-width: 5; }
       g.var-theme { fill: var(--browser-brand); stroke: var(--browser-line); stroke-width: 5; }
       .var-theme .inherit-box { fill: inherit; stroke: currentColor; color: #dc2626; }
+      .css-transform-origin { transform-origin: center; transform: rotate(12deg) skewX(8deg); }
+      @media print { .media-rule { fill: #dc2626; } }
+      @media screen { .media-rule { fill: #2563eb; stroke: #16a34a; stroke-width: 5; } }
     </style>
     <rect width="1280" height="720" fill="#ffffff" stroke="none"/>
     <text x="90" y="90" style="font-size:40;font-family:Arial;font-weight:700;fill:#17202a">Browser SVG coverage</text>
@@ -98,6 +101,8 @@ const sampleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720
     <ellipse id="bbox-clipped-ellipse" cx="1090" cy="560" rx="80" ry="50" style="fill:#ede9fe;stroke:#6d28d9;clip-path:url(#bbox-clip)"/>
     <rect id="css-colors" x="740" y="615" width="120" height="50" style="color:orange;fill:currentColor;stroke:hsl(210 100% 50%)"/>
     <g class="var-theme"><rect class="inherit-box" x="910" y="88" width="105" height="52"/></g>
+    <rect id="css-transform-origin" class="css-transform-origin" x="1035" y="88" width="105" height="52" style="fill:#f0fdf4;stroke:#16a34a"/>
+    <rect id="media-rule" class="media-rule" x="1160" y="88" width="70" height="52"/>
     <rect id="alpha-shape" x="580" y="615" width="120" height="50" style="fill:rgba(239,68,68,0.5);stroke:#2563ebcc;stroke-width:6;fill-opacity:0.8;stroke-opacity:0.5"/>
     <line id="dash-line" x1="120" y1="650" x2="300" y2="650" style="stroke:#0f766e;stroke-width:8;stroke-dasharray:18 10;stroke-linecap:round;stroke-linejoin:bevel"/>
     <text id="rich-text" x="330" y="660" rotate="6" style="font-size:24;font-family:Arial;fill:#111827;font-variant:small-caps;text-transform:capitalize">rich <tspan style="fill:#dc2626;font-weight:700;baseline-shift:super;text-transform:uppercase">red</tspan><tspan style="fill:#2563eb;font-style:italic;text-decoration:underline line-through;letter-spacing:2px;text-transform:none"> blue</tspan></text>
@@ -411,8 +416,8 @@ function extractShapes(root) {
         const tag = localName(element);
         if (tag === "metadata" || tag === "defs" || tag === "style")
             return;
-        const ownMatrix = multiply(matrix, transformMatrix(element.getAttribute("transform")));
         const ownStyle = computedStyle(element, inheritedStyle, css, refs);
+        const ownMatrix = multiply(matrix, styleTransformMatrix(element, ownStyle));
         if (tag === "use") {
             const href = element.getAttribute("href") || element.getAttribute("xlink:href") || "";
             const refId = href.startsWith("#") ? href.slice(1) : "";
@@ -2175,9 +2180,13 @@ function computedStyle(element, inherited, css = [], refs = new Map()) {
     const rotate = value("rotate");
     const direction = value("direction");
     const clipPath = value("clip-path");
+    const transform = value("transform");
+    const transformOrigin = value("transform-origin");
     const marker = value("marker");
     const markerStart = value("marker-start");
     const markerEnd = value("marker-end");
+    delete next.transform;
+    delete next.transformOrigin;
     if (color != null)
         next.color = parseCssColor(color, next);
     const opacityAlpha = parseAlpha(opacity);
@@ -2247,6 +2256,10 @@ function computedStyle(element, inherited, css = [], refs = new Map()) {
         next.direction = normalizeTextDirection(direction);
     if (clipPath != null)
         next.clipPath = clipPath.trim();
+    if (transform != null)
+        next.transform = transform.trim();
+    if (transformOrigin != null)
+        next.transformOrigin = transformOrigin.trim();
     if (marker != null) {
         const enabled = marker !== "none";
         next.markerStart = enabled;
@@ -2263,18 +2276,76 @@ function collectCss(root) {
     let order = 0;
     for (const style of Array.from(root.querySelectorAll("style"))) {
         const text = (style.textContent || "").replace(/\/\*[\s\S]*?\*\//g, "");
-        for (const match of text.matchAll(/([^{}]+)\{([^{}]+)\}/g)) {
-            const selectorText = (match[1] || "").trim();
-            const body = match[2] || "";
-            if (!selectorText || selectorText.startsWith("@"))
-                continue;
-            for (const selector of selectorList(selectorText)) {
-                rules.push({ selector, declarations: parseStyleDeclarations(body), specificity: selectorSpecificity(selector), order });
-                order += 1;
-            }
-        }
+        order = collectCssRules(text, rules, order);
     }
     return rules;
+}
+function collectCssRules(text, rules, order) {
+    for (const [selectorText, body] of cssRuleBlocks(text)) {
+        const selector = selectorText.trim();
+        if (selector.toLowerCase().startsWith("@media")) {
+            if (mediaQueryApplies(selector.slice(6).trim()))
+                order = collectCssRules(body, rules, order);
+            continue;
+        }
+        if (!selector || selector.startsWith("@"))
+            continue;
+        for (const item of selectorList(selector)) {
+            rules.push({ selector: item, declarations: parseStyleDeclarations(body), specificity: selectorSpecificity(item), order });
+            order += 1;
+        }
+    }
+    return order;
+}
+function cssRuleBlocks(text) {
+    const blocks = [];
+    let index = 0;
+    while (index < text.length) {
+        const start = text.indexOf("{", index);
+        if (start < 0)
+            break;
+        const selector = text.slice(index, start).trim();
+        let depth = 1;
+        let quote = null;
+        let end = start + 1;
+        while (end < text.length) {
+            const char = text[end];
+            if (quote) {
+                if (char === quote)
+                    quote = null;
+            }
+            else if (char === "'" || char === "\"") {
+                quote = char;
+            }
+            else if (char === "{") {
+                depth += 1;
+            }
+            else if (char === "}") {
+                depth -= 1;
+                if (depth === 0)
+                    break;
+            }
+            end += 1;
+        }
+        if (depth === 0 && selector)
+            blocks.push([selector, text.slice(start + 1, end)]);
+        index = end + 1;
+    }
+    return blocks;
+}
+function mediaQueryApplies(query) {
+    const normalized = query.trim().toLowerCase().split(/\s+/).join(" ");
+    if (!normalized)
+        return true;
+    return normalized.split(",").some((item) => singleMediaQueryApplies(item.trim()));
+}
+function singleMediaQueryApplies(query) {
+    let normalized = query;
+    if (normalized.startsWith("only "))
+        normalized = normalized.slice(5).trim();
+    if (normalized.startsWith("not "))
+        return !singleMediaQueryApplies(normalized.slice(4).trim());
+    return normalized === "all" || normalized === "screen" || normalized.startsWith("all and ") || normalized.startsWith("screen and ");
 }
 function collectRefs(root) {
     const refs = new Map();
@@ -2407,6 +2478,10 @@ function cssValueFromStyle(style, name) {
             return style.wordSpacing == null ? null : String(style.wordSpacing);
         case "direction":
             return style.direction ?? null;
+        case "transform":
+            return style.transform ?? null;
+        case "transform-origin":
+            return style.transformOrigin ?? null;
         case "padding":
             return style.tableCellPadding == null ? null : String(style.tableCellPadding);
         case "padding-left":
@@ -3039,40 +3114,218 @@ function parseLength(value, fallback = 0) {
     const parsed = Number.parseFloat(value);
     return Number.isFinite(parsed) ? parsed : fallback;
 }
+function parseAbsoluteLength(value, fallback = Number.NaN) {
+    if (!value)
+        return fallback;
+    const trimmed = value.trim().toLowerCase();
+    const match = trimmed.match(/^([+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)([a-z]*)$/);
+    if (!match)
+        return fallback;
+    const number = Number.parseFloat(match[1] || "");
+    if (!Number.isFinite(number))
+        return fallback;
+    const unit = match[2] || "";
+    const scale = {
+        "": 1,
+        px: 1,
+        in: 96,
+        cm: 96 / 2.54,
+        mm: 96 / 25.4,
+        q: 96 / 101.6,
+        pt: 96 / 72,
+        pc: 16,
+    };
+    return scale[unit] == null ? fallback : number * scale[unit];
+}
 function supportedDataImage(value) {
     return /^data:image\/(?:png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+/=\s]+$/i.test(value);
 }
 function edges(values) {
     return [...new Set(values.map((value) => Math.round(value * 1000) / 1000))].sort((a, b) => a - b);
 }
+function styleTransformMatrix(element, style) {
+    const matrix = transformMatrix(style.transform);
+    const origin = transformOriginPoint(element, style.transformOrigin);
+    if (!origin)
+        return matrix;
+    return multiply(multiply([1, 0, 0, 1, origin[0], origin[1]], matrix), [1, 0, 0, 1, -origin[0], -origin[1]]);
+}
 function transformMatrix(value) {
     if (!value)
         return [1, 0, 0, 1, 0, 0];
+    if (value.trim().toLowerCase() === "none")
+        return [1, 0, 0, 1, 0, 0];
     let matrix = [1, 0, 0, 1, 0, 0];
-    for (const match of value.matchAll(/(matrix|translate|scale|rotate)\(([^)]*)\)/g)) {
-        const kind = match[1];
-        const args = (match[2] || "").replaceAll(",", " ").trim().split(/\s+/).map(Number).filter((item) => Number.isFinite(item));
+    for (const match of value.matchAll(/(matrix|translate|scale|rotate|skewx|skewy)\(([^)]*)\)/gi)) {
+        const kind = (match[1] || "").toLowerCase();
+        const rawArgs = transformArgs(match[2] || "");
+        const numbers = rawArgs.map(parseTransformNumberArg);
+        const lengths = rawArgs.map(parseTransformLengthArg);
         let next = [1, 0, 0, 1, 0, 0];
-        if (kind === "matrix" && args.length >= 6) {
-            next = [args[0], args[1], args[2], args[3], args[4], args[5]];
+        if (kind === "matrix" && numbers.length >= 6 && numbers.slice(0, 6).every((item) => item != null)) {
+            next = [numbers[0], numbers[1], numbers[2], numbers[3], numbers[4], numbers[5]];
         }
         else if (kind === "translate") {
-            next = [1, 0, 0, 1, args[0] || 0, args[1] || 0];
+            next = [1, 0, 0, 1, lengths[0] ?? 0, lengths[1] ?? 0];
         }
-        else if (kind === "scale") {
-            next = [args[0] ?? 1, 0, 0, args[1] ?? args[0] ?? 1, 0, 0];
+        else if (kind === "scale" && numbers.length > 0) {
+            next = [numbers[0] ?? 1, 0, 0, numbers[1] ?? numbers[0] ?? 1, 0, 0];
         }
         else if (kind === "rotate") {
-            const angle = ((args[0] || 0) * Math.PI) / 180;
+            const angleDegrees = parseTransformAngleArg(rawArgs[0] || "0") ?? 0;
+            const angle = (angleDegrees * Math.PI) / 180;
             const cos = Math.cos(angle);
             const sin = Math.sin(angle);
-            const cx = args[1] || 0;
-            const cy = args[2] || 0;
-            next = multiply(multiply([1, 0, 0, 1, cx, cy], [cos, sin, -sin, cos, 0, 0]), [1, 0, 0, 1, -cx, -cy]);
+            if (lengths.length >= 3 && lengths[1] != null && lengths[2] != null) {
+                const cx = lengths[1];
+                const cy = lengths[2];
+                next = multiply(multiply([1, 0, 0, 1, cx, cy], [cos, sin, -sin, cos, 0, 0]), [1, 0, 0, 1, -cx, -cy]);
+            }
+            else {
+                next = [cos, sin, -sin, cos, 0, 0];
+            }
+        }
+        else if (kind === "skewx") {
+            const angle = ((parseTransformAngleArg(rawArgs[0] || "0") ?? 0) * Math.PI) / 180;
+            next = [1, 0, Math.tan(angle), 1, 0, 0];
+        }
+        else if (kind === "skewy") {
+            const angle = ((parseTransformAngleArg(rawArgs[0] || "0") ?? 0) * Math.PI) / 180;
+            next = [1, Math.tan(angle), 0, 1, 0, 0];
         }
         matrix = multiply(matrix, next);
     }
     return matrix;
+}
+function transformArgs(value) {
+    return value.replaceAll(",", " ").trim().split(/\s+/).filter(Boolean);
+}
+function parseTransformNumberArg(value) {
+    if (/[a-z%]/i.test(value))
+        return null;
+    const number = Number.parseFloat(value);
+    return Number.isFinite(number) ? number : null;
+}
+function parseTransformLengthArg(value) {
+    const number = parseAbsoluteLength(value);
+    return Number.isFinite(number) ? number : null;
+}
+function parseTransformAngleArg(value) {
+    const trimmed = value.trim().toLowerCase();
+    const number = Number.parseFloat(trimmed);
+    if (!Number.isFinite(number))
+        return null;
+    if (trimmed.endsWith("turn"))
+        return number * 360;
+    if (trimmed.endsWith("grad"))
+        return number * 0.9;
+    if (trimmed.endsWith("rad"))
+        return (number * 180) / Math.PI;
+    return number;
+}
+function transformOriginPoint(element, value) {
+    if (!value)
+        return null;
+    const parts = transformOriginParts(value);
+    if (!parts)
+        return null;
+    const box = elementReferenceBox(element);
+    const x = originLength(parts[0], "x", box);
+    const y = originLength(parts[1], "y", box);
+    if (x == null || y == null)
+        return null;
+    if (parts[2] != null) {
+        const z = parseAbsoluteLength(parts[2]);
+        if (!Number.isFinite(z) || Math.abs(z) > 0.000001)
+            return null;
+    }
+    return [x, y];
+}
+function transformOriginParts(value) {
+    const rawParts = value.trim().split(/\s+/).filter(Boolean);
+    if (rawParts.length < 1 || rawParts.length > 3)
+        return null;
+    const normalized = rawParts.map((part) => part.toLowerCase());
+    const z = rawParts[2];
+    const xy = normalized.slice(0, 2);
+    let resolved;
+    if (xy.length === 1) {
+        const first = xy[0];
+        if (first === "left" || first === "right")
+            resolved = [originKeywordToPercent(first), "50%"];
+        else if (first === "top" || first === "bottom")
+            resolved = ["50%", originKeywordToPercent(first)];
+        else if (first === "center")
+            resolved = ["50%", "50%"];
+        else
+            resolved = [rawParts[0], "50%"];
+    }
+    else {
+        const first = xy[0];
+        const second = xy[1];
+        const firstAxis = originKeywordAxis(first);
+        const secondAxis = originKeywordAxis(second);
+        if (firstAxis && firstAxis === secondAxis)
+            return null;
+        if (firstAxis === "y" || secondAxis === "x")
+            resolved = [originKeywordToPercent(second), originKeywordToPercent(first)];
+        else
+            resolved = [originKeywordToPercent(first), originKeywordToPercent(second)];
+    }
+    return z == null ? resolved : [resolved[0], resolved[1], z];
+}
+function originKeywordAxis(value) {
+    if (value === "left" || value === "right")
+        return "x";
+    if (value === "top" || value === "bottom")
+        return "y";
+    return null;
+}
+function originKeywordToPercent(value) {
+    return { left: "0%", top: "0%", center: "50%", right: "100%", bottom: "100%" }[value] ?? value;
+}
+function originLength(value, axis, box) {
+    const trimmed = value.trim();
+    if (trimmed.endsWith("%")) {
+        if (!box)
+            return null;
+        const percent = Number.parseFloat(trimmed.slice(0, -1));
+        if (!Number.isFinite(percent))
+            return null;
+        return (axis === "x" ? box.x : box.y) + ((axis === "x" ? box.width : box.height) * percent) / 100;
+    }
+    const length = parseAbsoluteLength(trimmed);
+    return Number.isFinite(length) ? length : null;
+}
+function elementReferenceBox(element) {
+    const tag = localName(element);
+    if (tag === "rect" || tag === "image" || tag === "foreignObject") {
+        const width = num(element, "width");
+        const height = num(element, "height");
+        return width >= 0 && height >= 0 ? { x: num(element, "x"), y: num(element, "y"), width, height } : null;
+    }
+    if (tag === "circle") {
+        const r = num(element, "r");
+        return r >= 0 ? { x: num(element, "cx") - r, y: num(element, "cy") - r, width: r * 2, height: r * 2 } : null;
+    }
+    if (tag === "ellipse") {
+        const rx = num(element, "rx");
+        const ry = num(element, "ry");
+        return rx >= 0 && ry >= 0 ? { x: num(element, "cx") - rx, y: num(element, "cy") - ry, width: rx * 2, height: ry * 2 } : null;
+    }
+    if (tag === "line") {
+        const x1 = num(element, "x1");
+        const y1 = num(element, "y1");
+        const x2 = num(element, "x2");
+        const y2 = num(element, "y2");
+        return { x: Math.min(x1, x2), y: Math.min(y1, y2), width: Math.abs(x2 - x1), height: Math.abs(y2 - y1) };
+    }
+    const points = tag === "polygon" || tag === "polyline" ? parsePoints(element.getAttribute("points") || "") : tag === "path" ? parseBasicPath(element.getAttribute("d") || "", [1, 0, 0, 1, 0, 0])?.points ?? [] : [];
+    if (!points.length)
+        return null;
+    const xs = points.map(([x]) => x);
+    const ys = points.map(([, y]) => y);
+    return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
 }
 function multiply(a, b) {
     return [a[0] * b[0] + a[2] * b[1], a[1] * b[0] + a[3] * b[1], a[0] * b[2] + a[2] * b[3], a[1] * b[2] + a[3] * b[3], a[0] * b[4] + a[2] * b[5] + a[4], a[1] * b[4] + a[3] * b[5] + a[5]];
