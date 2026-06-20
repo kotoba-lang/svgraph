@@ -1,4 +1,4 @@
-# ADR 0001: SVGraph Semantic IR
+# ADR 0001: SVGraph
 
 ## Status
 
@@ -10,7 +10,7 @@ SVG can carry visual geometry, document metadata, and application-specific data 
 
 ## Decision
 
-Introduce SVGraph, an SVG-based intermediate representation exposed as `svg_to_svgraph()`. The legacy `svg_to_ir()` API remains an alias. SVGraph preserves:
+Introduce SVGraph, an SVG-based semantic graph model exposed as `svg_to_svgraph()`. The legacy `svg_to_ir()` API remains an alias. SVGraph preserves:
 
 - element tree structure with stable node ids
 - normal SVG attributes
@@ -21,7 +21,7 @@ Introduce SVGraph, an SVG-based intermediate representation exposed as `svg_to_s
 
 SVGraph is intentionally independent of a specific output format. Target emitters consume the graph and decide whether a node maps to a native object, a grouped shape, a raster fallback, or an application sidecar.
 
-## IR Shape
+## SVGraph Shape
 
 ```json
 {

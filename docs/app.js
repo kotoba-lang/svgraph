@@ -13,14 +13,14 @@ const sampleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720
     <rect width="1280" height="720" fill="#f8fafc"/>
     <rect x="90" y="96" width="500" height="210" rx="22" fill="#ccfbf1" stroke="#0f766e" stroke-width="4"/>
     <text x="128" y="184" font-size="54" font-family="Arial" font-weight="700" fill="#134e4a">PPTXSVG</text>
-    <text x="130" y="248" font-size="28" font-family="Arial" fill="#334155">SVG as editable presentation IR</text>
+    <text x="130" y="248" font-size="28" font-family="Arial" fill="#334155">SVG as editable SVGraph presentation</text>
     <circle id="api" data-kind="service" cx="770" cy="230" r="70" fill="#dbeafe" stroke="#2563eb" stroke-width="4"/>
     <rect id="deck" data-kind="presentation" x="910" y="160" width="190" height="140" rx="16" fill="#fee2e2" stroke="#b42318" stroke-width="4"/>
     <line data-kind="relation" x1="840" y1="230" x2="910" y2="230" stroke="#475467" stroke-width="5"/>
   </g>
   <g id="table-slide" data-kind="slide" data-title="Native Table Candidate">
     <rect width="1280" height="720" fill="#ffffff"/>
-    <text x="90" y="90" font-size="40" font-family="Arial" font-weight="700" fill="#17202a">Table semantics stay in IR</text>
+    <text x="90" y="90" font-size="40" font-family="Arial" font-weight="700" fill="#17202a">Table semantics stay in SVGraph</text>
     <g id="table" data-kind="table" transform="translate(90 150)">
       <rect data-kind="cell" data-row="0" data-col="0" data-colspan="2" data-text="Merged header" width="520" height="80" fill="#e6f4f1" stroke="#0f766e" stroke-width="2" stroke-dasharray="4 2" stroke-linecap="round" stroke-linejoin="round"/>
       <rect data-kind="cell" data-row="1" data-col="0" data-rowspan="2" data-text="Tall label" y="80" width="260" height="160" fill="#f0fdf4" stroke="#0f766e" stroke-width="2"/>
@@ -46,7 +46,7 @@ const sampleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720
           </tr>
           <tr>
             <td rowspan="2" style="background-color:#dcfce7;color:#14532d;border:2px solid #16a34a;font-weight:700">Roadmap</td>
-            <td align="center" valign="top" style="background-color:#ffffff;color:#111827;border:1px solid #94a3b8;white-space:nowrap;direction:rtl;padding:2px 6px 3px 8px">IR <strong>rich</strong> <em>runs</em> <span style="color:#dc2626;font-variant:small-caps;letter-spacing:2px;text-decoration-line:underline;text-decoration-style:dashed">red</span></td>
+            <td align="center" valign="top" style="background-color:#ffffff;color:#111827;border:1px solid #94a3b8;white-space:nowrap;direction:rtl;padding:2px 6px 3px 8px">SVGraph <strong>rich</strong> <em>runs</em> <span style="color:#dc2626;font-variant:small-caps;letter-spacing:2px;text-decoration-line:underline;text-decoration-style:dashed">red</span></td>
             <td style="background-color:#f8fafc;color:#111827;border:1px solid #94a3b8;border-right:3px dotted #dc2626;border-top:4px double #2563eb;border-bottom-style:dashed;border-bottom-width:2px;border-bottom-color:#16a34a">Browser</td>
           </tr>
           <tr>
@@ -738,7 +738,7 @@ function elementToShape(element, matrix, style, id, viewport) {
         const href = element.getAttribute("href") || element.getAttribute("xlink:href") || "";
         if (supportedDataImage(href)) {
             const imageFit = imagePreserveAspectRatioRect(geom(element, "x", "x", viewport), geom(element, "y", "y", viewport), geom(element, "width", "x", viewport), geom(element, "height", "y", viewport), href, element.getAttribute("preserveAspectRatio"));
-            const box = transformedBox(matrix, imageFit.x, imageFit.y, imageFit.width, imageFit.height);
+            const box = transformedImageBox(matrix, imageFit.x, imageFit.y, imageFit.width, imageFit.height);
             return {
                 id,
                 kind: "image",
@@ -751,6 +751,9 @@ function elementToShape(element, matrix, style, id, viewport) {
                 href,
                 alpha: style.imageAlpha ?? null,
                 srcRect: imageFit.srcRect,
+                rotation: box.rotation,
+                flipH: box.flipH,
+                flipV: box.flipV,
             };
         }
     }
@@ -2271,7 +2274,10 @@ function freeformXml(shape) {
 }
 function imageXml(shape) {
     const srcRect = shape.srcRect ? srcRectXml(shape.srcRect) : "";
-    return `<p:pic><p:nvPicPr><p:cNvPr id="${shape.id}" name="${xml(shape.name)}"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="${xml(shape.href)}">${blipAlphaXml(shape.alpha)}</a:blip>${srcRect}<a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="${emu(shape.x)}" y="${emu(shape.y)}"/><a:ext cx="${emu(shape.width)}" cy="${emu(shape.height)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`;
+    const rot = shape.rotation == null ? "" : ` rot="${Math.round(shape.rotation * 60000)}"`;
+    const flipH = shape.flipH ? ' flipH="1"' : "";
+    const flipV = shape.flipV ? ' flipV="1"' : "";
+    return `<p:pic><p:nvPicPr><p:cNvPr id="${shape.id}" name="${xml(shape.name)}"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="${xml(shape.href)}">${blipAlphaXml(shape.alpha)}</a:blip>${srcRect}<a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm${rot}${flipH}${flipV}><a:off x="${emu(shape.x)}" y="${emu(shape.y)}"/><a:ext cx="${emu(shape.width)}" cy="${emu(shape.height)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`;
 }
 function srcRectXml(rect) {
     const [left, top, right, bottom] = rect;
@@ -4529,6 +4535,27 @@ function transformedBox(matrix, x, y, width, height) {
     const minX = Math.min(...xs);
     const minY = Math.min(...ys);
     return { x: minX, y: minY, width: Math.max(...xs) - minX, height: Math.max(...ys) - minY };
+}
+function transformedImageBox(matrix, x, y, width, height) {
+    const fallback = transformedBox(matrix, x, y, width, height);
+    const corners = [point(matrix, x, y), point(matrix, x + width, y), point(matrix, x + width, y + height), point(matrix, x, y + height)];
+    const vx = [corners[1][0] - corners[0][0], corners[1][1] - corners[0][1]];
+    const vy = [corners[3][0] - corners[0][0], corners[3][1] - corners[0][1]];
+    const w = Math.hypot(vx[0], vx[1]);
+    const h = Math.hypot(vy[0], vy[1]);
+    if (w <= 1e-9 || h <= 1e-9 || Math.abs(vx[0] * vy[0] + vx[1] * vy[1]) > 1e-6 * w * h) {
+        return { ...fallback, rotation: null, flipH: false, flipV: false };
+    }
+    const determinant = vx[0] * vy[1] - vx[1] * vy[0];
+    let rotation = (Math.atan2(vx[1], vx[0]) * 180) / Math.PI;
+    if (rotation < 0)
+        rotation += 360;
+    if (rotation >= 360)
+        rotation -= 360;
+    const centerX = corners.reduce((sum, [px]) => sum + px, 0) / 4;
+    const centerY = corners.reduce((sum, [, py]) => sum + py, 0) / 4;
+    const normalizedRotation = Math.abs(rotation) < 1e-9 || Math.abs(rotation - 360) < 1e-9 ? null : rotation;
+    return { x: centerX - w / 2, y: centerY - h / 2, width: w, height: h, rotation: normalizedRotation, flipH: false, flipV: determinant < 0 };
 }
 function matrixKeepsRectUpright(matrix) {
     const [a, b, c, d] = matrix;

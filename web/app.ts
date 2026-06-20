@@ -20,20 +20,20 @@ type Dependency = {
   attribute: string;
 };
 
-type PptxSvgIr = {
+type PptxSvgProjection = {
   kind: "pptxsvg";
   slide_size: [number, number];
-  slides: SlideIr[];
-  parts: PartIr[];
-  masters: TemplateIr[];
-  layouts: TemplateIr[];
-  guides: GuideIr[];
-  rulers: RulerIr[];
-  text_styles: TextStyleIr[];
+  slides: SlideRecord[];
+  parts: PartRecord[];
+  masters: TemplateRecord[];
+  layouts: TemplateRecord[];
+  guides: GuideRecord[];
+  rulers: RulerRecord[];
+  text_styles: TextStyleRecord[];
   metadata: Record<string, JsonValue>;
 };
 
-type SlideIr = {
+type SlideRecord = {
   slide_id: string;
   node_id: string;
   title: string | null;
@@ -42,13 +42,13 @@ type SlideIr = {
   metadata: { text?: string; json?: JsonValue };
 };
 
-type PartIr = {
+type PartRecord = {
   part_name: string;
   kind: string;
   source_node_id: string | null;
 };
 
-type TemplateIr = {
+type TemplateRecord = {
   template_id: string;
   kind: string;
   node_id: string | null;
@@ -56,7 +56,7 @@ type TemplateIr = {
   metadata: JsonValue;
 };
 
-type GuideIr = {
+type GuideRecord = {
   guide_id: string;
   orientation: string;
   position: number;
@@ -64,7 +64,7 @@ type GuideIr = {
   node_id: string | null;
 };
 
-type RulerIr = {
+type RulerRecord = {
   ruler_id: string;
   orientation: string;
   origin: number;
@@ -73,7 +73,7 @@ type RulerIr = {
   node_id: string | null;
 };
 
-type TextStyleIr = {
+type TextStyleRecord = {
   style_id: string;
   role: string;
   properties: Record<string, JsonValue>;
@@ -86,7 +86,7 @@ type SvgraphDocument = {
   root: SvgraphNode;
   metadata: { text?: string; json?: JsonValue };
   dependencies: Dependency[];
-  presentation: PptxSvgIr;
+  presentation: PptxSvgProjection;
 };
 
 type Shape =
@@ -263,6 +263,9 @@ type ImageShape = BaseShape & {
   href: string;
   alpha: number | null;
   srcRect: [number, number, number, number] | null;
+  rotation: number | null;
+  flipH: boolean;
+  flipV: boolean;
 };
 
 type TableShape = BaseShape & {
@@ -409,14 +412,14 @@ const sampleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720
     <rect width="1280" height="720" fill="#f8fafc"/>
     <rect x="90" y="96" width="500" height="210" rx="22" fill="#ccfbf1" stroke="#0f766e" stroke-width="4"/>
     <text x="128" y="184" font-size="54" font-family="Arial" font-weight="700" fill="#134e4a">PPTXSVG</text>
-    <text x="130" y="248" font-size="28" font-family="Arial" fill="#334155">SVG as editable presentation IR</text>
+    <text x="130" y="248" font-size="28" font-family="Arial" fill="#334155">SVG as editable SVGraph presentation</text>
     <circle id="api" data-kind="service" cx="770" cy="230" r="70" fill="#dbeafe" stroke="#2563eb" stroke-width="4"/>
     <rect id="deck" data-kind="presentation" x="910" y="160" width="190" height="140" rx="16" fill="#fee2e2" stroke="#b42318" stroke-width="4"/>
     <line data-kind="relation" x1="840" y1="230" x2="910" y2="230" stroke="#475467" stroke-width="5"/>
   </g>
   <g id="table-slide" data-kind="slide" data-title="Native Table Candidate">
     <rect width="1280" height="720" fill="#ffffff"/>
-    <text x="90" y="90" font-size="40" font-family="Arial" font-weight="700" fill="#17202a">Table semantics stay in IR</text>
+    <text x="90" y="90" font-size="40" font-family="Arial" font-weight="700" fill="#17202a">Table semantics stay in SVGraph</text>
     <g id="table" data-kind="table" transform="translate(90 150)">
       <rect data-kind="cell" data-row="0" data-col="0" data-colspan="2" data-text="Merged header" width="520" height="80" fill="#e6f4f1" stroke="#0f766e" stroke-width="2" stroke-dasharray="4 2" stroke-linecap="round" stroke-linejoin="round"/>
       <rect data-kind="cell" data-row="1" data-col="0" data-rowspan="2" data-text="Tall label" y="80" width="260" height="160" fill="#f0fdf4" stroke="#0f766e" stroke-width="2"/>
@@ -442,7 +445,7 @@ const sampleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720
           </tr>
           <tr>
             <td rowspan="2" style="background-color:#dcfce7;color:#14532d;border:2px solid #16a34a;font-weight:700">Roadmap</td>
-            <td align="center" valign="top" style="background-color:#ffffff;color:#111827;border:1px solid #94a3b8;white-space:nowrap;direction:rtl;padding:2px 6px 3px 8px">IR <strong>rich</strong> <em>runs</em> <span style="color:#dc2626;font-variant:small-caps;letter-spacing:2px;text-decoration-line:underline;text-decoration-style:dashed">red</span></td>
+            <td align="center" valign="top" style="background-color:#ffffff;color:#111827;border:1px solid #94a3b8;white-space:nowrap;direction:rtl;padding:2px 6px 3px 8px">SVGraph <strong>rich</strong> <em>runs</em> <span style="color:#dc2626;font-variant:small-caps;letter-spacing:2px;text-decoration-line:underline;text-decoration-style:dashed">red</span></td>
             <td style="background-color:#f8fafc;color:#111827;border:1px solid #94a3b8;border-right:3px dotted #dc2626;border-top:4px double #2563eb;border-bottom-style:dashed;border-bottom-width:2px;border-bottom-color:#16a34a">Browser</td>
           </tr>
           <tr>
@@ -593,7 +596,7 @@ line</text>
 const state: {
   tab: string;
   svgraph: SvgraphDocument | null;
-  pptxsvg: PptxSvgIr | null;
+  pptxsvg: PptxSvgProjection | null;
   webgpu: boolean;
 } = {
   tab: "summary",
@@ -704,7 +707,7 @@ function isSlide(node: SvgraphNode): boolean {
   return node.data.kind === "slide" || node.data.role === "slide" || Object.hasOwn(node.data, "slide");
 }
 
-function buildPptxsvg(root: SvgraphNode): PptxSvgIr {
+function buildPptxsvg(root: SvgraphNode): PptxSvgProjection {
   const nodes = flatten(root);
   const slides = nodes.filter(isSlide);
   const selectedSlides = slides.length ? slides : [root];
@@ -750,7 +753,7 @@ function buildPptxsvg(root: SvgraphNode): PptxSvgIr {
   };
 }
 
-function templates(nodes: SvgraphNode[], metadataItems: JsonValue, kind: string): TemplateIr[] {
+function templates(nodes: SvgraphNode[], metadataItems: JsonValue, kind: string): TemplateRecord[] {
   const items = Array.isArray(metadataItems) ? metadataItems : [];
   const fromMeta = items.map((item, index) => {
     const obj = asObject(item);
@@ -774,7 +777,7 @@ function templates(nodes: SvgraphNode[], metadataItems: JsonValue, kind: string)
   return [...fromMeta, ...fromNodes];
 }
 
-function guides(nodes: SvgraphNode[], metadataItems: JsonValue): GuideIr[] {
+function guides(nodes: SvgraphNode[], metadataItems: JsonValue): GuideRecord[] {
   const items = Array.isArray(metadataItems) ? metadataItems : [];
   const fromMeta = items.map((item, index) => {
     const obj = asObject(item);
@@ -798,7 +801,7 @@ function guides(nodes: SvgraphNode[], metadataItems: JsonValue): GuideIr[] {
   return [...fromMeta, ...fromNodes];
 }
 
-function rulers(nodes: SvgraphNode[], metadataItems: JsonValue): RulerIr[] {
+function rulers(nodes: SvgraphNode[], metadataItems: JsonValue): RulerRecord[] {
   const items = Array.isArray(metadataItems) ? metadataItems : [];
   const fromMeta = items.map((item, index) => {
     const obj = asObject(item);
@@ -824,7 +827,7 @@ function rulers(nodes: SvgraphNode[], metadataItems: JsonValue): RulerIr[] {
   return [...fromMeta, ...fromNodes];
 }
 
-function textStyles(nodes: SvgraphNode[], metadataStyles: JsonValue): TextStyleIr[] {
+function textStyles(nodes: SvgraphNode[], metadataStyles: JsonValue): TextStyleRecord[] {
   const styleObj = !Array.isArray(metadataStyles) ? asObject(metadataStyles) : {};
   const fromMeta = Object.entries(styleObj).map(([role, properties]) => ({
     style_id: role,
@@ -1161,7 +1164,7 @@ function elementToShape(element: Element, matrix: Matrix, style: SvgStyle, id: n
         href,
         element.getAttribute("preserveAspectRatio"),
       );
-      const box = transformedBox(matrix, imageFit.x, imageFit.y, imageFit.width, imageFit.height);
+      const box = transformedImageBox(matrix, imageFit.x, imageFit.y, imageFit.width, imageFit.height);
       return {
         id,
         kind: "image",
@@ -1174,6 +1177,9 @@ function elementToShape(element: Element, matrix: Matrix, style: SvgStyle, id: n
         href,
         alpha: style.imageAlpha ?? null,
         srcRect: imageFit.srcRect,
+        rotation: box.rotation,
+        flipH: box.flipH,
+        flipV: box.flipV,
       };
     }
   }
@@ -2615,7 +2621,10 @@ function freeformXml(shape: FreeformShape): string {
 
 function imageXml(shape: ImageShape): string {
   const srcRect = shape.srcRect ? srcRectXml(shape.srcRect) : "";
-  return `<p:pic><p:nvPicPr><p:cNvPr id="${shape.id}" name="${xml(shape.name)}"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="${xml(shape.href)}">${blipAlphaXml(shape.alpha)}</a:blip>${srcRect}<a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="${emu(shape.x)}" y="${emu(shape.y)}"/><a:ext cx="${emu(shape.width)}" cy="${emu(shape.height)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`;
+  const rot = shape.rotation == null ? "" : ` rot="${Math.round(shape.rotation * 60000)}"`;
+  const flipH = shape.flipH ? ' flipH="1"' : "";
+  const flipV = shape.flipV ? ' flipV="1"' : "";
+  return `<p:pic><p:nvPicPr><p:cNvPr id="${shape.id}" name="${xml(shape.name)}"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="${xml(shape.href)}">${blipAlphaXml(shape.alpha)}</a:blip>${srcRect}<a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm${rot}${flipH}${flipV}><a:off x="${emu(shape.x)}" y="${emu(shape.y)}"/><a:ext cx="${emu(shape.width)}" cy="${emu(shape.height)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`;
 }
 
 function srcRectXml(rect: [number, number, number, number]): string {
@@ -4739,6 +4748,26 @@ function transformedBox(matrix: Matrix, x: number, y: number, width: number, hei
   const minX = Math.min(...xs);
   const minY = Math.min(...ys);
   return { x: minX, y: minY, width: Math.max(...xs) - minX, height: Math.max(...ys) - minY };
+}
+
+function transformedImageBox(matrix: Matrix, x: number, y: number, width: number, height: number): { x: number; y: number; width: number; height: number; rotation: number | null; flipH: boolean; flipV: boolean } {
+  const fallback = transformedBox(matrix, x, y, width, height);
+  const corners = [point(matrix, x, y), point(matrix, x + width, y), point(matrix, x + width, y + height), point(matrix, x, y + height)];
+  const vx: [number, number] = [corners[1]![0] - corners[0]![0], corners[1]![1] - corners[0]![1]];
+  const vy: [number, number] = [corners[3]![0] - corners[0]![0], corners[3]![1] - corners[0]![1]];
+  const w = Math.hypot(vx[0], vx[1]);
+  const h = Math.hypot(vy[0], vy[1]);
+  if (w <= 1e-9 || h <= 1e-9 || Math.abs(vx[0] * vy[0] + vx[1] * vy[1]) > 1e-6 * w * h) {
+    return { ...fallback, rotation: null, flipH: false, flipV: false };
+  }
+  const determinant = vx[0] * vy[1] - vx[1] * vy[0];
+  let rotation = (Math.atan2(vx[1], vx[0]) * 180) / Math.PI;
+  if (rotation < 0) rotation += 360;
+  if (rotation >= 360) rotation -= 360;
+  const centerX = corners.reduce((sum, [px]) => sum + px, 0) / 4;
+  const centerY = corners.reduce((sum, [, py]) => sum + py, 0) / 4;
+  const normalizedRotation = Math.abs(rotation) < 1e-9 || Math.abs(rotation - 360) < 1e-9 ? null : rotation;
+  return { x: centerX - w / 2, y: centerY - h / 2, width: w, height: h, rotation: normalizedRotation, flipH: false, flipV: determinant < 0 };
 }
 
 function matrixKeepsRectUpright(matrix: Matrix): boolean {

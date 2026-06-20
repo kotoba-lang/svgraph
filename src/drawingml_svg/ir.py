@@ -127,7 +127,10 @@ SvgIRTextStyle = SvgraphTextStyle
 
 
 def svg_to_ir(svg_text: str) -> SvgraphDocument:
-    """Parse SVG into a metadata-preserving IR for downstream emitters."""
+    """Parse SVG into SVGraph for downstream emitters.
+
+    This is the legacy API name for :func:`svg_to_svgraph`.
+    """
 
     root = ET.fromstring(svg_text)
     root_node = _node_to_ir(root, "n0")
@@ -142,7 +145,7 @@ def svg_to_ir(svg_text: str) -> SvgraphDocument:
 
 
 def svg_to_svgraph(svg_text: str) -> SvgraphDocument:
-    """Parse SVG into SVGraph, the metadata-preserving SVG graph IR."""
+    """Parse SVG into SVGraph, the metadata-preserving SVG graph model."""
 
     return svg_to_ir(svg_text)
 

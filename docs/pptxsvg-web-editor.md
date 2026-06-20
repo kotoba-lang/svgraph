@@ -54,7 +54,7 @@ Browser UI
         |-- File System Access API exports
 ```
 
-The editor should not let the LLM directly mutate the raw document. LLM output is always a proposed patch against IR-level commands, then validated by deterministic code before applying.
+The editor should not let the LLM directly mutate the raw document. LLM output is always a proposed patch against SVGraph-level commands, then validated by deterministic code before applying.
 
 ## Core Data Model
 
@@ -65,7 +65,7 @@ Client-side state should keep four synchronized layers:
 3. `SVGraphDocument`.
 4. `PPTXSVG presentation projection`.
 
-The app treats SVG as canonical. IR is derived and cached. UI actions should preferably emit structured edit operations and then serialize back to SVG:
+The app treats SVG as canonical. SVGraph is derived and cached. UI actions should preferably emit structured edit operations and then serialize back to SVG:
 
 ```json
 {
@@ -99,7 +99,7 @@ Every operation should be reversible for undo/redo.
 1. User opens `.svg` or pastes SVG.
 2. Parser validates XML and normalizes namespaces.
 3. Analyzer reports unsupported visual features.
-4. IR builder extracts metadata, `data-*`, dependencies, and `pptxsvg` presentation view.
+4. SVGraph builder extracts metadata, `data-*`, dependencies, and `pptxsvg` presentation view.
 5. UI overlays slide boundaries.
 
 ### Edit
@@ -112,7 +112,7 @@ Every operation should be reversible for undo/redo.
 ### Preview
 
 1. SVG preview uses browser rendering.
-2. PPTX preview uses deterministic IR-to-PresentationML preview logic.
+2. PPTX preview uses deterministic SVGraph-to-PresentationML preview logic.
 3. Warnings distinguish visual fallback from semantic loss.
 
 ### Export
@@ -174,7 +174,7 @@ LLM non-responsibilities:
 
 ## Assistant Patch Protocol
 
-Prompt context should be compact and IR-based:
+Prompt context should be compact and SVGraph-based:
 
 ```json
 {
@@ -242,10 +242,10 @@ Important states:
 
 ## Roadmap
 
-### Phase 1: IR Editor
+### Phase 1: SVGraph Editor
 
 - SVG load/save
-- IR tree view
+- SVGraph tree view
 - `pptxsvg` slide list
 - analyzer warnings
 - metadata/data-* inspector
@@ -286,4 +286,4 @@ Use a TypeScript frontend with:
 - SVG canvas as the primary editable surface
 - WASM/Python package only for tests/build tooling, not runtime parsing in the browser
 
-Keep `drawingml-svg` as the conversion core and publish the IR schema as stable JSON so the web editor, CLI, and future package emitter share the same contract.
+Keep `drawingml-svg` as the conversion core and publish the SVGraph schema as stable JSON so the web editor, CLI, and future package emitter share the same contract.
