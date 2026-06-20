@@ -1247,6 +1247,7 @@ function tableFromGroup(group: Element, matrix: Matrix, id: number, inheritedSty
 function shapesFromForeignObject(element: Element, matrix: Matrix, id: number, inheritedStyle: SvgStyle, css: CssRule[] = [], viewport: Viewport = defaultViewport()): Shape[] {
   const table = Array.from(element.querySelectorAll("table")).find((item) => localName(item) === "table");
   if (!table) return [];
+  if (!matrixKeepsRectUpright(matrix)) return [];
   const rows = htmlTableRows(table);
   if (!rows.length) return [];
   const columnCount = htmlTableColumnCount(rows);
@@ -4738,6 +4739,12 @@ function transformedBox(matrix: Matrix, x: number, y: number, width: number, hei
   const minX = Math.min(...xs);
   const minY = Math.min(...ys);
   return { x: minX, y: minY, width: Math.max(...xs) - minX, height: Math.max(...ys) - minY };
+}
+
+function matrixKeepsRectUpright(matrix: Matrix): boolean {
+  const [a, b, c, d] = matrix;
+  const epsilon = 1e-9;
+  return Math.abs(b) < epsilon && Math.abs(c) < epsilon && a > epsilon && d > epsilon;
 }
 
 function parsePoints(value: string): [number, number][] {

@@ -825,6 +825,8 @@ function shapesFromForeignObject(element, matrix, id, inheritedStyle, css = [], 
     const table = Array.from(element.querySelectorAll("table")).find((item) => localName(item) === "table");
     if (!table)
         return [];
+    if (!matrixKeepsRectUpright(matrix))
+        return [];
     const rows = htmlTableRows(table);
     if (!rows.length)
         return [];
@@ -4525,6 +4527,11 @@ function transformedBox(matrix, x, y, width, height) {
     const minX = Math.min(...xs);
     const minY = Math.min(...ys);
     return { x: minX, y: minY, width: Math.max(...xs) - minX, height: Math.max(...ys) - minY };
+}
+function matrixKeepsRectUpright(matrix) {
+    const [a, b, c, d] = matrix;
+    const epsilon = 1e-9;
+    return Math.abs(b) < epsilon && Math.abs(c) < epsilon && a > epsilon && d > epsilon;
 }
 function parsePoints(value) {
     const numbers = value.replaceAll(",", " ").trim().split(/\s+/).map(Number).filter((item) => Number.isFinite(item));
