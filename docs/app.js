@@ -1099,7 +1099,7 @@ function coverageElementIsSupported(element, tag, refs, css = [], style = {}, vi
         return coverageUseReferenceIsSupported(element, style, refs, css, viewport);
     }
     if (tag === "foreignObject")
-        return Array.from(element.querySelectorAll("table")).some((item) => localName(item) === "table");
+        return Array.from(element.querySelectorAll("table")).some((item) => localName(item) === "table" && htmlTableGrid(item) != null);
     if (tag === "switch")
         return switchSelectedChild(element) != null || element.children.length === 0;
     return true;
@@ -2911,12 +2911,10 @@ function shapesFromForeignObject(element, matrix, id, inheritedStyle, css = [], 
         return [];
     if (!matrixKeepsRectUpright(matrix))
         return [];
-    const rows = htmlTableRows(table);
-    if (!rows.length)
+    const grid = htmlTableGrid(table);
+    if (!grid)
         return [];
-    const columnCount = htmlTableColumnCount(rows);
-    if (columnCount <= 0)
-        return [];
+    const { rows, columnCount } = grid;
     const declarations = resolvedCascadedDeclarations(element, css, inheritedStyle);
     const box = transformedBox(matrix, cascadedGeom(element, declarations, "x", "x", viewport), cascadedGeom(element, declarations, "y", "y", viewport), cascadedGeom(element, declarations, "width", "x", viewport), cascadedGeom(element, declarations, "height", "y", viewport));
     if (box.width <= 0 || box.height <= 0)
@@ -3032,6 +3030,44 @@ function tableBorderFromStyle(style) {
 function htmlTableRows(table) {
     return Array.from(table.querySelectorAll("tr")).filter((item) => localName(item) === "tr");
 }
+function htmlTableGrid(table) {
+    const rows = htmlTableRows(table).filter((row) => htmlRowCells(row).length > 0);
+    if (!rows.length)
+        return null;
+    const occupied = [];
+    const placements = [];
+    let columnCount = 0;
+    rows.forEach((row, rowIndex) => {
+        occupied[rowIndex] ||= [];
+        let column = 0;
+        for (const cell of htmlRowCells(row)) {
+            while (occupied[rowIndex]?.[column])
+                column += 1;
+            const colSpan = Math.max(1, htmlSpan(cell, "colspan"));
+            const rowSpan = Math.max(1, htmlSpan(cell, "rowspan"));
+            placements.push({ row: rowIndex, rowSpan });
+            for (let r = rowIndex; r < rowIndex + rowSpan; r += 1) {
+                occupied[r] ||= [];
+                for (let c = column; c < column + colSpan; c += 1)
+                    occupied[r][c] = true;
+            }
+            column += colSpan;
+            columnCount = Math.max(columnCount, column);
+        }
+    });
+    if (placements.some((item) => item.row + item.rowSpan > rows.length))
+        return null;
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+        let filled = 0;
+        for (let column = 0; column < columnCount; column += 1) {
+            if (occupied[rowIndex]?.[column])
+                filled += 1;
+        }
+        if (filled !== columnCount)
+            return null;
+    }
+    return columnCount > 0 ? { rows, columnCount } : null;
+}
 function htmlRowCells(row) {
     return Array.from(row.children).filter((item) => ["td", "th"].includes(localName(item)));
 }
@@ -3132,28 +3168,6 @@ function htmlCaptionShape(caption, style, id, x, y, width, height, css) {
         baseline: "middle",
         runs,
     };
-}
-function htmlTableColumnCount(rows) {
-    const occupancy = [];
-    let max = 0;
-    rows.forEach((row, rowIndex) => {
-        occupancy[rowIndex] ||= [];
-        let column = 0;
-        for (const cell of htmlRowCells(row)) {
-            while (occupancy[rowIndex][column])
-                column += 1;
-            const colSpan = Math.max(1, htmlSpan(cell, "colspan"));
-            const rowSpan = Math.max(1, htmlSpan(cell, "rowspan"));
-            for (let r = rowIndex; r < rowIndex + rowSpan; r += 1) {
-                occupancy[r] ||= [];
-                for (let c = column; c < column + colSpan; c += 1)
-                    occupancy[r][c] = true;
-            }
-            column += colSpan;
-        }
-        max = Math.max(max, occupancy[rowIndex]?.length || 0, column);
-    });
-    return max;
 }
 function htmlSpan(element, name) {
     const value = Number.parseInt(element.getAttribute(name) || "1", 10);

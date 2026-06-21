@@ -1113,6 +1113,9 @@ def test_web_source_and_package_metadata_use_svgraph_naming() -> None:
         assert 'style="x:90px;y:465px;width:360px;height:90px"' in generated
         assert "shapesFromForeignObject(element, ownMatrix, nextId, ownStyle, css, childViewport)" in generated
         assert 'id="cell-width-html-table"' in generated
+        assert "function htmlTableGrid" in generated
+        assert "htmlTableGrid(item) != null" in generated
+        assert "placements.some((item) => item.row + item.rowSpan > rows.length)" in generated
         assert "function htmlTableFirstRowColumnWidths" in generated
         assert "function htmlTableSizes" in generated
         assert 'htmlStyleValue(cell, "width") ?? cell.getAttribute("width")' in generated
