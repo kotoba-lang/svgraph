@@ -1583,6 +1583,30 @@ def test_foreign_object_html_table_text_transform_converts_to_native_text_runs()
     assert analyze_svg(svg).unsupported_elements == {}
 
 
+def test_foreign_object_html_table_word_spacing_maps_to_native_text_runs() -> None:
+    svg = """<svg width="150" height="50">
+      <foreignObject x="10" y="8" width="120" height="24">
+        <body xmlns="http://www.w3.org/1999/xhtml">
+          <table>
+            <tr>
+              <td style="border:1px solid #94a3b8;word-spacing:6px">Hi all</td>
+              <td style="border:1px solid #94a3b8">Static</td>
+            </tr>
+          </table>
+        </body>
+      </foreignObject>
+    </svg>"""
+
+    dml = svg_to_drawingml(svg)
+    root = ET.fromstring(dml)
+    run_prs = root.findall(".//{http://schemas.openxmlformats.org/drawingml/2006/main}rPr")
+
+    assert "<a:tbl>" in dml
+    assert "<a:t>Hi all</a:t>" in dml
+    assert any(run_pr.get("spc") == "90" for run_pr in run_prs)
+    assert analyze_svg(svg).unsupported_elements == {}
+
+
 def test_foreign_object_html_table_colgroup_widths_convert_to_native_grid() -> None:
     svg = """<svg width="150" height="50">
       <foreignObject x="10" y="8" width="120" height="24">

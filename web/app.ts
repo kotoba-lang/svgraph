@@ -520,7 +520,7 @@ const sampleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720
           </tr>
           <tr>
             <td rowspan="2" style="background-color:#dcfce7;color:#14532d;border:2px solid #16a34a;font-weight:700">Roadmap</td>
-            <td align="center" valign="top" style="background-color:#ffffff;color:#111827;border:1px solid #94a3b8;white-space:nowrap;direction:rtl;padding:2px 6px 3px 8px;text-transform:lowercase">SVGraph <strong>rich</strong> <em>runs</em> <strong style="font-weight:400">plain</strong> <span style="color:#dc2626;font-variant:small-caps;letter-spacing:2px;text-decoration-line:underline;text-decoration-style:dashed;text-transform:uppercase">red</span></td>
+            <td align="center" valign="top" style="background-color:#ffffff;color:#111827;border:1px solid #94a3b8;white-space:nowrap;direction:rtl;padding:2px 6px 3px 8px;text-transform:lowercase">SVGraph <strong>rich</strong> <em>runs</em> <strong style="font-weight:400">plain</strong> <span style="color:#dc2626;font-variant:small-caps;word-spacing:6px;text-decoration-line:underline;text-decoration-style:dashed;text-transform:uppercase">red gap</span></td>
             <td style="background-color:#f8fafc;color:#111827;border:1px solid #94a3b8;border-right:3px dotted #dc2626;border-top:4px double #2563eb;border-bottom-style:dashed;border-bottom-width:2px;border-bottom-color:#16a34a">Browser</td>
           </tr>
           <tr>
@@ -3947,6 +3947,7 @@ function htmlTextRuns(element: Element, inheritedStyle: SvgStyle, css: CssRule[]
 
 function htmlTextRun(text: string, style: SvgStyle): TextRun {
   const transformed = applyTextTransform(text, style.textTransform);
+  const fontSize = style.fontSize ?? 14;
   return {
     text: transformed,
     breakBefore: false,
@@ -3957,7 +3958,7 @@ function htmlTextRun(text: string, style: SvgStyle): TextRun {
     strokeAlpha: style.strokeAlpha ?? null,
     strokeWidth: style.strokeWidth ?? 1,
     ...strokeStyle(style),
-    fontSize: style.fontSize ?? 14,
+    fontSize,
     fontFamily: style.fontFamily || "Aptos",
     bold: ["bold", "700", "800", "900"].includes(style.fontWeight || ""),
     italic: isItalic(style),
@@ -3969,7 +3970,7 @@ function htmlTextRun(text: string, style: SvgStyle): TextRun {
     underlineThickness: style.textDecorationThickness ?? null,
     strike: hasStrike(style),
     baselineShift: style.baselineShift ?? null,
-    letterSpacing: style.letterSpacing ?? null,
+    letterSpacing: effectiveLetterSpacing(style, transformed, fontSize),
   };
 }
 

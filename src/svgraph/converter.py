@@ -586,7 +586,7 @@ def _svg_foreign_object_table_shapes(
                         text_baseline=_html_vertical_align(cell_style) or "middle",
                         text_direction=_text_direction(cell_style.get("direction")),
                         text_wrap=_html_text_wrap(cell_style),
-                        letter_spacing=_svg_letter_spacing(cell_style, (0.0, 0.0)),
+                        letter_spacing=_svg_text_effective_letter_spacing(cell_style, text, font_size, (0.0, 0.0)),
                         text_runs=_html_table_cell_text_runs(cell, css, cell_style, max(scale_x, scale_y)),
                     )
                 )
@@ -624,6 +624,7 @@ def _html_table_caption_shape(
     scale: float,
 ) -> Shape:
     fill, fill_alpha = _html_text_fill(style)
+    font_size = _svg_font_size(style.get("font-size")) * scale
     return Shape(
         "text",
         x,
@@ -632,7 +633,7 @@ def _html_table_caption_shape(
         height,
         Paint(fill=fill or "#000000", stroke="none", fill_alpha=fill_alpha),
         text=text,
-        font_size=_svg_font_size(style.get("font-size")) * scale,
+        font_size=font_size,
         font_weight=style.get("font-weight"),
         font_style=style.get("font-style"),
         font_family=_font_family(style.get("font-family")),
@@ -641,7 +642,7 @@ def _html_table_caption_shape(
         text_baseline="middle",
         text_direction=_text_direction(style.get("direction")),
         text_wrap=_html_text_wrap(style),
-        letter_spacing=_svg_letter_spacing(style, (0.0, 0.0)),
+        letter_spacing=_svg_text_effective_letter_spacing(style, text, font_size, (0.0, 0.0)),
         text_runs=_html_table_cell_text_runs(caption, css, style, scale) if caption is not None else (),
     )
 
@@ -782,11 +783,12 @@ def _html_text_run(text: str, style: dict[str, str], scale: float, break_before:
     fill, fill_alpha = _html_text_fill(style)
     decoration_color, decoration_alpha = _text_decoration_color(style)
     transformed = _apply_text_transform(text, style.get("text-transform"))
+    font_size = _svg_font_size(style.get("font-size")) * scale
     return TextRun(
         text=transformed,
         paint=Paint(fill=fill or "#000000", stroke="none", fill_alpha=fill_alpha),
         break_before=break_before,
-        font_size=_svg_font_size(style.get("font-size")) * scale,
+        font_size=font_size,
         font_weight=style.get("font-weight"),
         font_style=style.get("font-style"),
         font_family=_font_family(style.get("font-family")),
@@ -797,7 +799,7 @@ def _html_text_run(text: str, style: dict[str, str], scale: float, break_before:
         text_decoration_alpha=decoration_alpha,
         text_decoration_thickness=_text_decoration_thickness(style, (0.0, 0.0)),
         text_baseline_shift=_baseline_shift(style.get("baseline-shift")),
-        letter_spacing=_svg_letter_spacing(style, (0.0, 0.0)),
+        letter_spacing=_svg_text_effective_letter_spacing(style, transformed, font_size, (0.0, 0.0)),
     )
 
 
@@ -1190,7 +1192,7 @@ def _html_table_spaced_table_shapes(
                     text_baseline=_html_vertical_align(cell_style) or "middle",
                     text_direction=_text_direction(cell_style.get("direction")),
                     text_wrap=_html_text_wrap(cell_style),
-                    letter_spacing=_svg_letter_spacing(cell_style, (0.0, 0.0)),
+                    letter_spacing=_svg_text_effective_letter_spacing(cell_style, text, font_size, (0.0, 0.0)),
                     text_runs=_html_table_cell_text_runs(cell, css, cell_style, max(scale_x, scale_y)),
                 )
             )

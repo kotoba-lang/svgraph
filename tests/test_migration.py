@@ -1130,11 +1130,13 @@ def test_web_source_and_package_metadata_use_svgraph_naming() -> None:
         assert '<strong style="font-weight:400">plain</strong>' in generated
         assert "text-transform:lowercase" in generated
         assert "text-transform:uppercase" in generated
+        assert "word-spacing:6px" in generated
         assert "function htmlFontWeightIsNormal" in generated
         assert "function htmlFontStyleIsNormal" in generated
         assert 'const textTransform = value("text-transform")' in generated
         assert "next.textTransform = normalizeTextTransform(textTransform)" in generated
         assert "const transformed = applyTextTransform(text, style.textTransform)" in generated
+        assert "letterSpacing: effectiveLetterSpacing(style, transformed, fontSize)" in generated
         assert "const parts = cssValueTokens(value).slice(0, 4)" in generated
         assert "const tokens = cssValueTokens(value).slice(0, 4)" in generated
         assert "const parts = cssValueTokens(value)" in generated
