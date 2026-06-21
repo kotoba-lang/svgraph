@@ -67,7 +67,7 @@ const sampleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720
             <td style="background-color:#f8fafc;color:#111827;border:1px solid #94a3b8;border-right:3px dotted #dc2626;border-top:4px double #2563eb;border-bottom-style:dashed;border-bottom-width:2px;border-bottom-color:#16a34a">Browser</td>
           </tr>
           <tr>
-            <td style="background:padding-box #ffffff;color:#111827;border:none;padding:1px">PPTX</td>
+            <td style="background:padding-box #ffffff;color:#111827;border:none;padding:calc(0.5px + 0.5px)">PPTX</td>
             <td id="cascade-cell" style="border:1px solid #94a3b8;border-left:2px solid #dc2626">Cascade</td>
           </tr>
         </table>
@@ -3276,7 +3276,7 @@ function htmlMarginSide(element, side) {
 function htmlMarginShorthandSide(value, side) {
     if (!value)
         return null;
-    const parts = value.trim().split(/\s+/).filter(Boolean).slice(0, 4);
+    const parts = cssValueTokens(value).slice(0, 4);
     if (!parts.length)
         return null;
     const [top, right, bottom, left] = parts.length === 1
@@ -3613,7 +3613,7 @@ function htmlFirstColorFill(value, style) {
 function htmlPaddingSides(value) {
     if (!value)
         return null;
-    const tokens = value.trim().split(/\s+/).slice(0, 4);
+    const tokens = cssValueTokens(value).slice(0, 4);
     if (!tokens.length)
         return null;
     const lengths = tokens.map((token) => htmlCssLength(token, 0));

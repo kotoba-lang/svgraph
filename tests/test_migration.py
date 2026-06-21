@@ -1123,6 +1123,9 @@ def test_web_source_and_package_metadata_use_svgraph_naming() -> None:
         assert 'htmlSpan(col, "span")' in generated
         assert "function htmlFirstColorFill" in generated
         assert "background:padding-box #ffffff" in generated
+        assert "padding:calc(0.5px + 0.5px)" in generated
+        assert "const parts = cssValueTokens(value).slice(0, 4)" in generated
+        assert "const tokens = cssValueTokens(value).slice(0, 4)" in generated
         assert "const parts = cssValueTokens(value)" in generated
         assert "function htmlTableFitSpacing" in generated
         assert "Math.min(spacing, size / 3)" in generated
