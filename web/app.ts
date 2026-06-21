@@ -2120,7 +2120,7 @@ function dmlConnectorToSvg(element: Element): DmlSvgItem | null {
   const [y1, y2] = dmlFlip(spPr, "flipV") ? [box.y + box.height, box.y] : [box.y, box.y + box.height];
   return {
     bounds: dmlXfrmTransformBounds(spPr, box, { skipFlip: true }),
-    svg: `<line id="${xml(dmlSvgId(name))}" x1="${formatNumber(x1)}" y1="${formatNumber(y1)}" x2="${formatNumber(x2)}" y2="${formatNumber(y2)}"${dmlSvgStyle(dmlSvgPaint(spPr))} data-kind="relation"${dmlXfrmTransformAttr(spPr, box, { skipFlip: true })}/>`,
+    svg: `<line id="${xml(dmlSvgId(name))}" x1="${formatNumber(x1)}" y1="${formatNumber(y1)}" x2="${formatNumber(x2)}" y2="${formatNumber(y2)}"${dmlSvgStyle(dmlSvgPaint(spPr, element))} data-kind="relation"${dmlXfrmTransformAttr(spPr, box, { skipFlip: true })}/>`,
   };
 }
 
