@@ -1183,6 +1183,8 @@ def test_web_source_and_package_metadata_use_svgraph_naming() -> None:
         assert 'id="hidden-blend-effect"' in generated
         assert "function subtreeHasVisibleFill" in generated
         assert "function hasVisibleFill" in generated
+        assert "function clipRuleHasNoEffect" in generated
+        assert 'id="ignored-clip-rule"' in generated
         assert 'id="ignored-fill-rule"' in generated
         assert "function strokeDashoffsetHasNoEffect" in generated
         assert "function strokeDashoffsetIsSupported" in generated

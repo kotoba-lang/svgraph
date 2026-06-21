@@ -640,6 +640,7 @@ const sampleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720
     <g id="visibility-hidden" visibility="hidden"><rect id="visibility-visible" x="910" y="615" width="34" height="50" visibility="visible" style="fill:#ffffff;stroke:#0f766e;stroke-width:3"/></g>
     <g id="blend-isolation-dedupe" isolation="isolate"><rect x="955" y="615" width="34" height="50" mix-blend-mode="multiply" style="fill:#f8fafc;stroke:#64748b"/></g>
     <g id="hidden-blend-effect" mix-blend-mode="multiply"><rect x="995" y="615" width="34" height="50" opacity="0" style="fill:#111827"/></g>
+    <path id="ignored-clip-rule" d="M 1000 615 H 1029 V 665 H 1000 Z" clip-rule="evenodd" fill="#f8fafc" stroke="#94a3b8"/>
     <g id="ignored-fill-rule" fill-rule="evenodd"><path d="M 1035 615 H 1069 V 665 H 1035 Z" fill="none" stroke="#475569"/></g>
     <g class="var-theme"><rect class="inherit-box" x="910" y="88" width="105" height="52"/></g>
     <g id="initial-reset-group" fill="#123456" stroke="#abcdef" stroke-width="5" font-size="24" text-anchor="middle">
@@ -1735,6 +1736,7 @@ function coverageAttributeIsSupportedOrNoop(element: Element, tag: string, name:
   if (!normalized || coverageAttributeHasNoEffect(element, name, value)) return true;
   if (["clip-path", "filter", "isolation", "mask", "mix-blend-mode"].includes(name) && !coverageSubtreeHasVisibleRendering(element, style, refs, css, viewport, new Set())) return true;
   if (name === "clip-path") return clipPathHasRect(value, refs);
+  if (name === "clip-rule") return clipRuleHasNoEffect(element);
   if (name === "fill-rule") return !subtreeHasVisibleFill(element, style, refs, css, viewport);
   if (name === "isolation") return isolationIsRedundantWithBlend(element, tag, normalized, style, css, refs, viewport);
   if (name === "direction") return normalized === "ltr" || (tag === "text" && normalizeTextDirection(value) != null);
@@ -1822,6 +1824,13 @@ function preserveAspectRatioIsSupportedOrNoop(element: Element, tag: string, val
     return align === "none" || dataImageDimensions(hrefValue(element)) != null;
   }
   return false;
+}
+
+function clipRuleHasNoEffect(element: Element): boolean {
+  for (let current = element.parentElement; current; current = current.parentElement) {
+    if (localName(current) === "clipPath") return false;
+  }
+  return true;
 }
 
 function vectorEffectIsSupportedOrNoop(element: Element, value: string, style: SvgStyle, refs: Map<string, Element>, css: CssRule[], viewport: Viewport): boolean {
