@@ -2166,23 +2166,65 @@ function dmlTextSvg(element, box) {
     const runs = dmlTextRuns(element).filter((run) => run.text);
     if (!runs.length)
         return "";
+    const layout = dmlTextLayout(element, box, runs);
     const attrs = [
-        `x="${formatNumber(box.x + box.width / 2)}"`,
-        `y="${formatNumber(box.y + box.height / 2)}"`,
-        'text-anchor="middle"',
-        'dominant-baseline="middle"',
-    ];
+        `x="${formatNumber(layout.x)}"`,
+        `y="${formatNumber(layout.y)}"`,
+        layout.anchor ? `text-anchor="${layout.anchor}"` : "",
+        layout.baseline ? `dominant-baseline="${layout.baseline}"` : "",
+        layout.direction ? `direction="${layout.direction}"` : "",
+    ].filter(Boolean);
     if (runs.length === 1) {
         const run = runs[0];
         if (!run)
             return "";
         return `<text ${attrs.concat(run.attrs).join(" ")}>${xml(run.text)}</text>`;
     }
-    const x = formatNumber(box.x + box.width / 2);
+    const x = formatNumber(layout.x);
     return `<text ${attrs.join(" ")}>${runs.map((run) => {
         const runAttrs = run.breakBefore ? [`x="${x}"`, 'dy="1.2em"', ...run.attrs] : run.attrs;
         return `<tspan${runAttrs.length ? ` ${runAttrs.join(" ")}` : ""}>${xml(run.text)}</tspan>`;
     }).join("")}</text>`;
+}
+function dmlTextLayout(element, box, runs) {
+    const [left, top, right, bottom] = dmlTextInsets(element);
+    const inner = {
+        x: box.x + left,
+        y: box.y + top,
+        width: Math.max(0, box.width - left - right),
+        height: Math.max(0, box.height - top - bottom),
+    };
+    const anchor = dmlTextAnchor(element);
+    const baseline = dmlTextBaseline(element);
+    const fontSize = dmlTextLayoutFontSize(runs) ?? inner.height / 1.4;
+    return {
+        x: anchor === "middle" ? inner.x + inner.width / 2 : anchor === "end" ? inner.x + inner.width : inner.x,
+        y: baseline === "middle" ? inner.y + inner.height / 2 : baseline === "text-after-edge" ? inner.y + inner.height : inner.y + fontSize,
+        anchor,
+        baseline,
+        direction: dmlTextDirection(element),
+    };
+}
+function dmlTextInsets(element) {
+    const bodyPr = descendantsByLocal(element, "bodyPr")[0];
+    if (!bodyPr)
+        return [0, 0, 0, 0];
+    return [
+        emuToPx(bodyPr.getAttribute("lIns")),
+        emuToPx(bodyPr.getAttribute("tIns")),
+        emuToPx(bodyPr.getAttribute("rIns")),
+        emuToPx(bodyPr.getAttribute("bIns")),
+    ];
+}
+function dmlTextLayoutFontSize(runs) {
+    for (const run of runs) {
+        for (const attr of run.attrs) {
+            const match = attr.match(/^font-size="([^"]+)"$/);
+            if (match)
+                return Number(match[1]);
+        }
+    }
+    return null;
 }
 function dmlTextRuns(element) {
     const txBody = childByLocal(element, "txBody");
@@ -2259,6 +2301,27 @@ function dmlListStyleParagraphProperties(txBody, paragraph) {
     const listStyle = childByLocal(txBody, "lstStyle");
     const level = optionalInt(pPr?.getAttribute("lvl") ?? null) + 1 || 1;
     return childByLocal(listStyle, `lvl${Math.min(Math.max(level, 1), 9)}pPr`);
+}
+function dmlTextAnchor(element) {
+    const pPr = dmlParagraphProperties(element, (item) => item.getAttribute("algn") != null);
+    return { ctr: "middle", r: "end", l: "start" }[pPr?.getAttribute("algn") || ""] ?? null;
+}
+function dmlTextDirection(element) {
+    const pPr = dmlParagraphProperties(element, (item) => item.getAttribute("rtl") != null);
+    return ["1", "true"].includes(pPr?.getAttribute("rtl") || "") ? "rtl" : null;
+}
+function dmlTextBaseline(element) {
+    const anchor = descendantsByLocal(element, "bodyPr")[0]?.getAttribute("anchor") || "";
+    return { ctr: "middle", b: "text-after-edge", t: "text-before-edge" }[anchor] ?? null;
+}
+function dmlParagraphProperties(element, predicate) {
+    const txBody = childByLocal(element, "txBody");
+    const firstParagraph = directChildrenByLocal(txBody, "p")[0] ?? null;
+    const pPr = childByLocal(firstParagraph, "pPr") ?? descendantsByLocal(element, "pPr")[0] ?? null;
+    if (pPr && predicate(pPr))
+        return pPr;
+    const listPPr = firstParagraph ? dmlListStyleParagraphProperties(txBody, firstParagraph) : null;
+    return listPPr && predicate(listPPr) ? listPPr : null;
 }
 function dmlParagraphBullet(txBody, paragraph, number) {
     const pPr = childByLocal(paragraph, "pPr");
