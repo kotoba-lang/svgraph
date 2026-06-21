@@ -2285,21 +2285,35 @@ function dmlXfrmBox(spPr: Element): Box | null {
 
 type DmlPaint = { color: string | null; alpha: number | null };
 
-function dmlSvgPaint(spPr: Element): { fill: string | null; fillAlpha: number | null; stroke: string | null; strokeAlpha: number | null; strokeWidth: number | null } {
+function dmlSvgPaint(spPr: Element): { fill: string | null; fillAlpha: number | null; stroke: string | null; strokeAlpha: number | null; strokeWidth: number | null; strokeLineCap: string | null; strokeLineJoin: string | null; strokeDasharray: string | null; strokeMiterlimit: number | null } {
   const fillPaint = childByLocal(spPr, "noFill") ? { color: null, alpha: null } : dmlFillPaint(spPr) ?? { color: "#000000", alpha: null };
   const ln = childByLocal(spPr, "ln");
   const strokePaint = ln && !childByLocal(ln, "noFill") ? dmlFillPaint(ln) : null;
   const strokeWidth = ln ? emuToPx(ln.getAttribute("w")) : null;
-  return { fill: fillPaint.color, fillAlpha: fillPaint.alpha, stroke: strokePaint?.color ?? null, strokeAlpha: strokePaint?.alpha ?? null, strokeWidth };
+  return {
+    fill: fillPaint.color,
+    fillAlpha: fillPaint.alpha,
+    stroke: strokePaint?.color ?? null,
+    strokeAlpha: strokePaint?.alpha ?? null,
+    strokeWidth,
+    strokeLineCap: dmlLineCap(ln?.getAttribute("cap") ?? null),
+    strokeLineJoin: ln ? dmlLineJoin(ln) : null,
+    strokeDasharray: ln ? dmlDasharray(ln, strokeWidth) : null,
+    strokeMiterlimit: ln ? dmlMiterlimit(ln) : null,
+  };
 }
 
-function dmlSvgStyle(paint: { fill: string | null; fillAlpha?: number | null; stroke: string | null; strokeAlpha?: number | null; strokeWidth: number | null }): string {
+function dmlSvgStyle(paint: { fill: string | null; fillAlpha?: number | null; stroke: string | null; strokeAlpha?: number | null; strokeWidth: number | null; strokeLineCap?: string | null; strokeLineJoin?: string | null; strokeDasharray?: string | null; strokeMiterlimit?: number | null }): string {
   const attrs = [
     `fill="${paint.fill ?? "none"}"`,
     paint.fillAlpha != null && paint.fillAlpha < 1 ? `fill-opacity="${formatNumber(paint.fillAlpha)}"` : "",
     paint.stroke ? `stroke="${paint.stroke}"` : "",
     paint.stroke && paint.strokeAlpha != null && paint.strokeAlpha < 1 ? `stroke-opacity="${formatNumber(paint.strokeAlpha)}"` : "",
     paint.stroke && paint.strokeWidth != null ? `stroke-width="${formatNumber(paint.strokeWidth)}"` : "",
+    paint.stroke && paint.strokeLineCap ? `stroke-linecap="${paint.strokeLineCap}"` : "",
+    paint.stroke && paint.strokeLineJoin ? `stroke-linejoin="${paint.strokeLineJoin}"` : "",
+    paint.stroke && paint.strokeDasharray ? `stroke-dasharray="${paint.strokeDasharray}"` : "",
+    paint.stroke && paint.strokeMiterlimit != null ? `stroke-miterlimit="${formatNumber(paint.strokeMiterlimit)}"` : "",
   ].filter(Boolean);
   return attrs.length ? ` ${attrs.join(" ")}` : "";
 }
@@ -2337,6 +2351,47 @@ function dmlAverageAlpha(values: number[]): number | null {
   if (!values.length) return null;
   const alpha = values.reduce((total, value) => total + value, 0) / values.length;
   return alpha < 1 ? alpha : null;
+}
+
+function dmlLineCap(value: string | null): string | null {
+  return ({ flat: "butt", rnd: "round", sq: "square" } as Record<string, string>)[value || ""] ?? null;
+}
+
+function dmlLineJoin(ln: Element): string | null {
+  if (childByLocal(ln, "round")) return "round";
+  if (childByLocal(ln, "bevel")) return "bevel";
+  if (childByLocal(ln, "miter")) return "miter";
+  return null;
+}
+
+function dmlMiterlimit(ln: Element): number | null {
+  const miter = childByLocal(ln, "miter");
+  if (!miter?.getAttribute("lim")) return null;
+  return optionalInt(miter.getAttribute("lim")) / 100000;
+}
+
+function dmlDasharray(ln: Element, strokeWidth: number | null): string | null {
+  const custom = childByLocal(ln, "custDash");
+  if (custom && strokeWidth) {
+    const values = directChildrenByLocal(custom, "ds").flatMap((item) => [
+      formatNumber((optionalInt(item.getAttribute("d")) / 100000) * strokeWidth),
+      formatNumber((optionalInt(item.getAttribute("sp")) / 100000) * strokeWidth),
+    ]);
+    return values.length ? values.join(" ") : null;
+  }
+  const dash = childByLocal(ln, "prstDash")?.getAttribute("val") || "";
+  return ({
+    dash: "4 3",
+    dashDot: "4 3 1 3",
+    dot: "1 3",
+    lgDash: "8 3",
+    lgDashDot: "8 3 1 3",
+    lgDashDotDot: "8 3 1 3 1 3",
+    sysDash: "3 1",
+    sysDashDot: "3 1 1 1",
+    sysDashDotDot: "3 1 1 1 1 1",
+    sysDot: "1 1",
+  } as Record<string, string>)[dash] ?? null;
 }
 
 function dmlColor(parent: Element | null | undefined): string | null {

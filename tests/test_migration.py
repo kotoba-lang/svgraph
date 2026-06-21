@@ -1053,6 +1053,7 @@ def test_web_source_and_package_metadata_use_svgraph_naming() -> None:
     assert "examples/fill-effects.dml" in package_metadata["files"]
     assert "examples/freeform.dml" in package_metadata["files"]
     assert "examples/group.dml" in package_metadata["files"]
+    assert "examples/line-style.dml" in package_metadata["files"]
     assert "examples/picture.dml" in package_metadata["files"]
     assert "examples/preset.dml" in package_metadata["files"]
     assert "examples/sample.svg" in package_metadata["files"]
@@ -1165,6 +1166,9 @@ def test_web_source_and_package_metadata_use_svgraph_naming() -> None:
         assert "function dmlPresetColor" in generated
         assert "function dmlAveragePaint" in generated
         assert "function dmlFillPaint" in generated
+        assert "function dmlLineCap" in generated
+        assert "function dmlLineJoin" in generated
+        assert "function dmlDasharray" in generated
         assert "function dmlTableFrameToSvg" in generated
         assert "function dmlTableColumns" in generated
         assert "function dmlSvgItemsWalk" in generated
@@ -1535,7 +1539,7 @@ def test_browser_only_svgraph_build_is_documented_and_ci_guarded() -> None:
     assert "`web/app.ts` builds SVGraph" in readme
     assert "`docs/app.js` is the compiled Pages artifact." in readme
     assert "Python or server APIs" in readme
-    assert "DrawingML-to-SVG import for basic shape, solid-fill/stroke alpha, gradient/pattern fill fallback colors, DrawingML color luminance modifiers and srgb/scrgb/hsl/scheme/system/preset color sources, common preset polygon/arc/flowchart/bevel/snip/symbol/star/arrow/callout/ribbon/action shape, custom geometry/freeform, grouped shape, connector, picture, and native table fragments" in readme
+    assert "DrawingML-to-SVG import for basic shape, solid-fill/stroke alpha, gradient/pattern fill fallback colors, DrawingML color luminance modifiers and srgb/scrgb/hsl/scheme/system/preset color sources, DrawingML stroke cap/join/dash/miter details, common preset polygon/arc/flowchart/bevel/snip/symbol/star/arrow/callout/ribbon/action shape, custom geometry/freeform, grouped shape, connector, picture, and native table fragments" in readme
     assert "underline/strike decoration including underline style, color, and thickness" in readme
     assert "npm ci" in readme
     assert "npm run check:web" in readme
@@ -1560,6 +1564,7 @@ def test_browser_only_svgraph_build_is_documented_and_ci_guarded() -> None:
     assert "node ./bin/svgraph.mjs dml2svg examples/alpha.dml" in package_metadata["scripts"]["check:package"]
     assert "node ./bin/svgraph.mjs dml2svg examples/color.dml" in package_metadata["scripts"]["check:package"]
     assert "node ./bin/svgraph.mjs dml2svg examples/fill-effects.dml" in package_metadata["scripts"]["check:package"]
+    assert "node ./bin/svgraph.mjs dml2svg examples/line-style.dml" in package_metadata["scripts"]["check:package"]
     assert 'transform=\\\"matrix(2 0 0 2 10 20)\\\"' in package_metadata["scripts"]["check:package"]
     assert 'transform=\\\"rotate(30 20 25) translate(20 25) scale(-1 1) translate(-20 -25)\\\"' in package_metadata["scripts"]["check:package"]
     assert 'points=\\\"30,20 50,40 10,40\\\"' in package_metadata["scripts"]["check:package"]
@@ -1579,12 +1584,15 @@ def test_browser_only_svgraph_build_is_documented_and_ci_guarded() -> None:
     assert "package-alpha.svg" in package_metadata["scripts"]["check:package"]
     assert "package-color.svg" in package_metadata["scripts"]["check:package"]
     assert "package-fill-effects.svg" in package_metadata["scripts"]["check:package"]
+    assert "package-line-style.svg" in package_metadata["scripts"]["check:package"]
     assert 'fill-opacity=\\\"0.5\\\"' in package_metadata["scripts"]["check:package"]
     assert 'stroke-opacity=\\\"0.25\\\"' in package_metadata["scripts"]["check:package"]
     assert 'fill=\\\"#99b2cc\\\"' in package_metadata["scripts"]["check:package"]
     assert 'stroke=\\\"#223962\\\"' in package_metadata["scripts"]["check:package"]
     assert 'fill=\\\"#339999\\\"' in package_metadata["scripts"]["check:package"]
     assert 'stroke=\\\"#004000\\\"' in package_metadata["scripts"]["check:package"]
+    assert 'stroke-linecap=\\\"round\\\"' in package_metadata["scripts"]["check:package"]
+    assert 'stroke-dasharray=\\\"4 3 1 3\\\"' in package_metadata["scripts"]["check:package"]
     assert "buildSVGraphAssistantPrompt" in package_metadata["scripts"]["check:package"]
     assert "applyAssistantPatch" in package_metadata["scripts"]["check:package"]
     assert "npm exec --registry=https://npm.pkg.github.com @com-junkawasaki/svgraph -- svg2dml" in readme
@@ -1740,6 +1748,7 @@ def test_changelog_documents_svgraph_migration_guard_surfaces() -> None:
         "browser TypeScript `drawingMlToSvg` import support for DrawingML solid fill and stroke alpha",
         "browser TypeScript `drawingMlToSvg` import support for DrawingML color luminance modifiers",
         "browser TypeScript `drawingMlToSvg` import support for DrawingML gradient and pattern fill fallback colors",
+        "browser TypeScript `drawingMlToSvg` import support for DrawingML stroke cap, join, dash",
         "XML Open flow conversion back into canonical SVG source",
         "native DrawingML table fragments as semantic SVG table and cell nodes",
         "npm package CLI backed by the TypeScript/browser converter",
