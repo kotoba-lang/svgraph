@@ -361,7 +361,7 @@ def test_cli_version_writes_installed_package_version(capsys) -> None:
     captured = capsys.readouterr()
 
     assert excinfo.value.code == 0
-    assert captured.out == "svgraph 0.1.36\n"
+    assert captured.out == "svgraph 0.1.37\n"
 
 
 def test_svgraph_module_cli_uses_canonical_program_name() -> None:
@@ -372,7 +372,7 @@ def test_svgraph_module_cli_uses_canonical_program_name() -> None:
         text=True,
     )
 
-    assert result.stdout == "svgraph 0.1.36\n"
+    assert result.stdout == "svgraph 0.1.37\n"
 
 
 def test_svgraph_cli_module_keeps_canonical_program_name() -> None:
@@ -383,7 +383,7 @@ def test_svgraph_cli_module_keeps_canonical_program_name() -> None:
         text=True,
     )
 
-    assert result.stdout == "svgraph 0.1.36\n"
+    assert result.stdout == "svgraph 0.1.37\n"
 
 
 def test_svgraph_module_cli_emits_canonical_svgraph_json_reports() -> None:
@@ -439,7 +439,7 @@ def test_svgraph_executable_keeps_svgraph_program_name(monkeypatch, capsys) -> N
     captured = capsys.readouterr()
 
     assert excinfo.value.code == 0
-    assert captured.out == "svgraph 0.1.36\n"
+    assert captured.out == "svgraph 0.1.37\n"
 
 
 def test_cli_converts_between_files_and_creates_output_parent(tmp_path) -> None:
@@ -8569,6 +8569,34 @@ def test_drawingml_line_rotation_round_trip_to_svg_transform() -> None:
     assert 'fill="none"' in svg
     assert 'transform="rotate(45 30 20)"' in svg
     assert 'viewBox="0 0 44.1421 34.1421"' in svg
+
+
+def test_drawingml_line_truthy_flip_attrs_round_trip_to_svg_endpoints() -> None:
+    dml = """<p:spTree xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
+      xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="1" name="line"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm flipH="true" flipV="true"><a:off x="95250" y="190500"/><a:ext cx="381000" cy="190500"/></a:xfrm>
+          <a:prstGeom prst="line"><a:avLst/></a:prstGeom>
+          <a:ln w="19050"><a:solidFill><a:srgbClr val="111827"/></a:solidFill></a:ln>
+        </p:spPr>
+      </p:sp>
+    </p:spTree>"""
+    svg = drawingml_to_svg(dml)
+
+    assert "<line" in svg
+    for expected in [
+        'fill="none"',
+        'stroke="#111827"',
+        'stroke-width="2"',
+        'x1="50"',
+        'y1="40"',
+        'x2="10"',
+        'y2="20"',
+    ]:
+        assert expected in svg
+    assert 'transform="translate' not in svg
 
 
 def test_drawingml_freeform_rotation_and_flip_round_trip_to_svg_transform() -> None:

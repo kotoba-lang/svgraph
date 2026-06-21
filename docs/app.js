@@ -2650,7 +2650,7 @@ function dmlColorWithAlpha(color, alpha) {
     return `${rgbToHex(rgb)}${suffix}`;
 }
 function dmlFlip(spPr, name) {
-    return childByLocal(spPr, "xfrm")?.getAttribute(name) === "1";
+    return dmlBool(childByLocal(spPr, "xfrm")?.getAttribute(name) ?? null);
 }
 function dmlSvgId(value) {
     return value.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "dml-shape";

@@ -3046,7 +3046,7 @@ function dmlColorWithAlpha(color: string, alpha: number | null): string {
 }
 
 function dmlFlip(spPr: Element, name: "flipH" | "flipV"): boolean {
-  return childByLocal(spPr, "xfrm")?.getAttribute(name) === "1";
+  return dmlBool(childByLocal(spPr, "xfrm")?.getAttribute(name) ?? null);
 }
 
 function dmlSvgId(value: string): string {

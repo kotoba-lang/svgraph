@@ -39,6 +39,7 @@ This project follows a simple, human-readable changelog. Until the project reach
 - Added browser TypeScript `drawingMlToSvg` import support for DrawingML shape style fill, line, and font references.
 - Added browser TypeScript `drawingMlToSvg` import support for DrawingML connector style line references.
 - Added browser TypeScript `drawingMlToSvg` import support for DrawingML line arrowheads as SVG markers.
+- Aligned browser TypeScript `drawingMlToSvg` line and connector flip handling with DrawingML truthy boolean values.
 - Added browser TypeScript `drawingMlToSvg` import support for DrawingML shape paint fallback on text fill and outline.
 - Added browser TypeScript `drawingMlToSvg` import support for DrawingML native table cell text layout/rich runs and individual border line style details.
 - Added browser TypeScript `drawingMlToSvg` import support for DrawingML native table cell fill alpha and non-duplicated default/run text paint attributes.
