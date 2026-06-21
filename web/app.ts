@@ -1752,7 +1752,7 @@ function coverageAttributeIsSupportedOrNoop(element: Element, tag: string, name:
   if (name === "pathLength") return normalizePathLength(value) != null;
   if (name === "preserveAspectRatio") return tag === "svg" || tag === "symbol" || tag === "image" || tag === "use";
   if (name === "rotate") return singleTextRotation(value, element.textContent || null) != null;
-  if (name === "stroke-dashoffset") return Number.isFinite(parseCssLength(value, percentageBasis("diag", defaultViewport()), Number.NaN));
+  if (name === "stroke-dashoffset") return strokeDashoffsetHasNoEffect(value, style, viewport) || strokeDashoffsetIsSupported(value, style, viewport);
   if (name === "stroke-linecap" || name === "stroke-linejoin") return !subtreeHasUnsupportedStrokeLineEnum(element, style, refs, css, viewport, name);
   if (name === "textLength") return textLengthIsSupported(element, tag, value, style);
   if (name === "text-decoration") return textDecorationShorthandIsSupported(value, style);
@@ -1903,6 +1903,31 @@ function styleValueForStrokeLineEnum(style: SvgStyle, attr: string): string | nu
 
 function strokeHasNoEffect(tag: string, style: SvgStyle): boolean {
   return !style.stroke || style.stroke === "none" || style.strokeAlpha === 0 || (style.strokeWidth ?? 1) <= 0 || (tag === "line" && style.stroke === "transparent");
+}
+
+function strokeDashoffsetHasNoEffect(value: string, style: SvgStyle, viewport: Viewport): boolean {
+  const basis = percentageBasis("diag", viewport);
+  const parsed = parseCssLength(value, basis, Number.NaN);
+  if (!Number.isFinite(parsed) || numbersClose(parsed, 0)) return Number.isFinite(parsed);
+  if (!style.strokeDasharray) return true;
+  const period = dashPatternPeriod(style.strokeDasharray, basis);
+  if (period == null) return true;
+  if (period && numbersClose(Math.abs(parsed) % period, 0)) return true;
+  return !style.stroke || style.stroke === "none" || style.strokeAlpha === 0 || (style.strokeWidth ?? 1) <= 0;
+}
+
+function strokeDashoffsetIsSupported(value: string, style: SvgStyle, viewport: Viewport): boolean {
+  const basis = percentageBasis("diag", viewport);
+  const parsed = parseCssLength(value, basis, Number.NaN);
+  return Number.isFinite(parsed) && !numbersClose(parsed, 0) && !!style.strokeDasharray && dasharrayWithOffset(style.strokeDasharray, parsed, basis) != null;
+}
+
+function dashPatternPeriod(value: string, basis = rootFontSize): number | null {
+  const nums = dasharrayNumbers(value, basis);
+  if (!nums || nums.reduce((sum, item) => sum + item, 0) <= 0) return null;
+  const resolved = nums.length % 2 === 1 ? nums.concat(nums) : nums;
+  const period = resolved.reduce((sum, item) => sum + item, 0);
+  return period > 0 ? period : null;
 }
 
 function zeroLengthOrPercentage(value: string): boolean {

@@ -1347,7 +1347,7 @@ function coverageAttributeIsSupportedOrNoop(element, tag, name, value, style, re
     if (name === "rotate")
         return singleTextRotation(value, element.textContent || null) != null;
     if (name === "stroke-dashoffset")
-        return Number.isFinite(parseCssLength(value, percentageBasis("diag", defaultViewport()), Number.NaN));
+        return strokeDashoffsetHasNoEffect(value, style, viewport) || strokeDashoffsetIsSupported(value, style, viewport);
     if (name === "stroke-linecap" || name === "stroke-linejoin")
         return !subtreeHasUnsupportedStrokeLineEnum(element, style, refs, css, viewport, name);
     if (name === "textLength")
@@ -1541,6 +1541,33 @@ function styleValueForStrokeLineEnum(style, attr) {
 }
 function strokeHasNoEffect(tag, style) {
     return !style.stroke || style.stroke === "none" || style.strokeAlpha === 0 || (style.strokeWidth ?? 1) <= 0 || (tag === "line" && style.stroke === "transparent");
+}
+function strokeDashoffsetHasNoEffect(value, style, viewport) {
+    const basis = percentageBasis("diag", viewport);
+    const parsed = parseCssLength(value, basis, Number.NaN);
+    if (!Number.isFinite(parsed) || numbersClose(parsed, 0))
+        return Number.isFinite(parsed);
+    if (!style.strokeDasharray)
+        return true;
+    const period = dashPatternPeriod(style.strokeDasharray, basis);
+    if (period == null)
+        return true;
+    if (period && numbersClose(Math.abs(parsed) % period, 0))
+        return true;
+    return !style.stroke || style.stroke === "none" || style.strokeAlpha === 0 || (style.strokeWidth ?? 1) <= 0;
+}
+function strokeDashoffsetIsSupported(value, style, viewport) {
+    const basis = percentageBasis("diag", viewport);
+    const parsed = parseCssLength(value, basis, Number.NaN);
+    return Number.isFinite(parsed) && !numbersClose(parsed, 0) && !!style.strokeDasharray && dasharrayWithOffset(style.strokeDasharray, parsed, basis) != null;
+}
+function dashPatternPeriod(value, basis = rootFontSize) {
+    const nums = dasharrayNumbers(value, basis);
+    if (!nums || nums.reduce((sum, item) => sum + item, 0) <= 0)
+        return null;
+    const resolved = nums.length % 2 === 1 ? nums.concat(nums) : nums;
+    const period = resolved.reduce((sum, item) => sum + item, 0);
+    return period > 0 ? period : null;
 }
 function zeroLengthOrPercentage(value) {
     const parsed = parseCssLength(value, 100, Number.NaN);
