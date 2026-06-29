@@ -1,5 +1,5 @@
 {
-  "name": "@com-junkawasaki/svgraph",
+  "name": "@kotoba-lang/svgraph",
   "version": "0.1.52",
   "description": "Browser-only SVGraph editor and SVG to PresentationML/PPTX converter.",
   "keywords": [
@@ -24,13 +24,13 @@
     "svgraph-browser": "bin/svgraph.mjs",
     "svgraph": "bin/svgraph.mjs"
   },
-  "homepage": "https://com-junkawasaki.github.io/svgraph/",
+  "homepage": "https://kotoba-lang.github.io/svgraph/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/com-junkawasaki/svgraph.git"
+    "url": "git+https://github.com/kotoba-lang/svgraph.git"
   },
   "bugs": {
-    "url": "https://github.com/com-junkawasaki/svgraph/issues"
+    "url": "https://github.com/kotoba-lang/svgraph/issues"
   },
   "license": "MIT",
   "files": [
