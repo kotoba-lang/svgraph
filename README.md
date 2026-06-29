@@ -62,8 +62,19 @@ npm run check:package
 ## Install
 
 ```bash
+echo "@com-junkawasaki:registry=https://npm.pkg.github.com" >> .npmrc
+# private package として見える場合は read:packages token も設定
+# echo "//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}" >> .npmrc
 npm install @com-junkawasaki/svgraph --registry=https://npm.pkg.github.com
 ```
+
+## Runtime / Dependencies
+
+- Implementation: TypeScript (`web/app.ts`) compiled to `docs/app.js` and `docs/app.d.ts`.
+- Runtime: browser or Node.js 18+ for the CLI.
+- Required dependency: `@xmldom/xmldom` for the Node CLI DOM shim.
+- Dev dependency: `typescript`.
+- Python is not a runtime, build, CLI, or package dependency. The published package runs through TypeScript-compiled JavaScript and Node/browser APIs.
 
 For local development:
 
