@@ -864,7 +864,7 @@ export function buildOfficeCausalPayload(svgraph) {
             if (target)
                 edges.push(officeCausalEdge("references", idByNode.get(node.node_id), idByNode.get(target.node_id), dependency.kind));
         }
-        if (node.data.kind === "relation" || node.data.role === "relation") {
+        if (isOfficeCausalRelationNode(node)) {
             edges.push(...officeCausalRelationEdges(node, idByNode, bySvgId));
         }
         if (node.text) {
@@ -948,6 +948,13 @@ function nodeBBox(node) {
 }
 function officeCausalEdge(kind, from, to, reason = "") {
     return { id: `${kind}:${from}->${to}${reason ? `#${reason}` : ""}`, kind, from, to };
+}
+function isOfficeCausalRelationNode(node) {
+    return (node.data.kind === "relation" ||
+        node.data.role === "relation" ||
+        node.data.kind === "causal" ||
+        node.data.edge === "causes" ||
+        node.data.type === "causes");
 }
 function officeCausalRelationEdges(node, idByNode, bySvgId) {
     const relationId = idByNode.get(node.node_id);
