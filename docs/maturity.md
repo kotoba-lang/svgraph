@@ -18,10 +18,10 @@ SVGraph is currently an alpha TypeScript/browser implementation. The strongest p
 | --- | --- | --- |
 | TypeScript package API | Stable | `npm run check:web`, `npm run check:package` |
 | Browser editor and GitHub Pages artifact | Alpha | `npm run build:web`, committed `docs/app.js` |
-| Node CLI shim | Stable | `npm run check:package` |
+| ClojureScript CLI shim | Stable | `npm run check:package`; package smoke runs through `bin/svgraph.cljs`. |
 | SVG to SVGraph IR | Alpha | `npm run test:maturity`; feature fixtures cover metadata, data semantics, dependencies, and diagnostics. |
 | SVGraph sidecar JSON with `source_svg` | Alpha | `npm run test:maturity` |
-| Office Causal JSON/JSONL projection | Alpha | `npm run test:maturity` |
+| Office Causal JSON/JSONL projection | Alpha | `npm run test:maturity`; fixtures cover deterministic ids, containment/reference edges, and causal hypothesis edges from semantic relation nodes. |
 | SVG to DrawingML fragment | Alpha | `npm run check:package`, `npm run test:maturity`; fixture tests cover editable geometry, connectors, rich text runs, and diagnostics. |
 | DrawingML fragment to SVG | Alpha | `npm run check:package`, `npm run test:maturity`; fixture tests cover line arrows, rich text styles, and table semantics. |
 | SVG to complete PPTX package | Alpha | `npm run test:maturity` |
@@ -74,4 +74,4 @@ git diff --exit-code docs/app.d.ts
 npm pack --dry-run --json
 ```
 
-The maturity suite now separates reusable test helpers from fixture-level conversion assertions. The next maturity step is to keep shrinking the large package smoke script and add fixture snapshots for PPTX package XML parts, slide-master/layout parts, and richer SVGraph causal edges.
+The maturity suite and package smoke now run as ClojureScript through `nbb`. Fixture coverage is split between semantic/PPTX maturity tests and feature-focused CLI/package smoke checks for API, generated SVG geometry, text, table, picture, color, Office Causal outputs including causal-edge JSONL and JSON/JSONL parity, stdin/stdout CLI paths, text and binary `-o` output-file writes including PPTX ZIP output, PPTX output-file part-level unzip assertions, and negative CLI behavior for unsupported commands, missing inputs, malformed stdin, malformed output arguments, and invalid output paths. Repeated package-smoke helpers live in shared CLJS support code, and CLI parse-time errors are reported without nbb stack context. The next maturity step is to add Office Causal JSONL package-part parity assertions against standalone CLI output while keeping the API smoke boundary separate from geometry/text/table fixtures.

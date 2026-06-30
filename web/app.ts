@@ -1406,7 +1406,7 @@ export function buildOfficeCausalPayload(svgraph: SVGraphDocument): OfficeCausal
       const target = dependency.target.startsWith("#") ? bySvgId.get(dependency.target.slice(1)) : null;
       if (target) edges.push(officeCausalEdge("references", idByNode.get(node.node_id)!, idByNode.get(target.node_id)!, dependency.kind));
     }
-    if (node.data.kind === "relation" || node.data.role === "relation") {
+    if (isOfficeCausalRelationNode(node)) {
       edges.push(...officeCausalRelationEdges(node, idByNode, bySvgId));
     }
     if (node.text) {
@@ -1491,6 +1491,16 @@ function nodeBBox(node: SVGraphNode): OfficeCausalNode["bbox"] | null {
 
 function officeCausalEdge(kind: OfficeCausalEdge["kind"], from: `ocz1:${string}`, to: `ocz1:${string}`, reason = ""): OfficeCausalEdge {
   return { id: `${kind}:${from}->${to}${reason ? `#${reason}` : ""}`, kind, from, to };
+}
+
+function isOfficeCausalRelationNode(node: SVGraphNode): boolean {
+  return (
+    node.data.kind === "relation" ||
+    node.data.role === "relation" ||
+    node.data.kind === "causal" ||
+    node.data.edge === "causes" ||
+    node.data.type === "causes"
+  );
 }
 
 function officeCausalRelationEdges(

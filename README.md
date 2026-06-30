@@ -71,10 +71,10 @@ npm install @com-junkawasaki/svgraph --registry=https://npm.pkg.github.com
 ## Runtime / Dependencies
 
 - Implementation: TypeScript (`web/app.ts`) compiled to `docs/app.js` and `docs/app.d.ts`.
-- Runtime: browser or Node.js 18+ for the CLI.
-- Required dependency: `@xmldom/xmldom` for the Node CLI DOM shim.
+- Runtime: browser or Node.js 18+ plus `nbb` for the ClojureScript CLI.
+- Required dependencies: `@xmldom/xmldom` for the CLI DOM shim and `nbb` for `bin/svgraph.cljs`.
 - Dev dependency: `typescript`.
-- Python is not a runtime, build, CLI, or package dependency. The published package runs through TypeScript-compiled JavaScript and Node/browser APIs.
+- Python is not a runtime, build, CLI, or package dependency. The published package runs through TypeScript-compiled JavaScript, ClojureScript CLI/test harnesses, and Node/browser APIs.
 
 For local development:
 
@@ -87,7 +87,7 @@ npm run check:package
 
 ## CLI
 
-The package installs a browser-runtime CLI that uses the TypeScript converter with a Node XML DOM shim:
+The package installs a ClojureScript `nbb` CLI that uses the TypeScript converter with a Node XML DOM shim:
 
 ```bash
 npm exec --registry=https://npm.pkg.github.com --package @com-junkawasaki/svgraph -- svgraph svg2dml input.svg -o shape.xml
