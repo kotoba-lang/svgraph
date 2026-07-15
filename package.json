@@ -86,7 +86,7 @@
     "check:package": "nbb --classpath tests tests/package_api_smoke.cljs && nbb --classpath tests tests/package_svg_smoke.cljs && nbb --classpath tests tests/package_text_smoke.cljs && nbb --classpath tests tests/package_table_smoke.cljs"
   },
   "devDependencies": {
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   },
   "dependencies": {
     "@xmldom/xmldom": "^0.9.10",
