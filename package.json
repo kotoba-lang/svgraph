@@ -82,8 +82,8 @@
   "scripts": {
     "build:web": "tsc -p tsconfig.web.json",
     "check:web": "tsc -p tsconfig.web.json --noEmit",
-    "test:maturity": "nbb tests/maturity_test.cljk",
-    "check:package": "nbb --classpath tests tests/package_api_smoke.cljk && nbb --classpath tests tests/package_svg_smoke.cljk && nbb --classpath tests tests/package_text_smoke.cljk && nbb --classpath tests tests/package_table_smoke.cljk"
+    "test:maturity": "kbb --backend sci tests/maturity_test.cljk",
+    "check:package": "kbb --backend sci --classpath tests tests/package_api_smoke.cljk && kbb --backend sci --classpath tests tests/package_svg_smoke.cljk && kbb --backend sci --classpath tests tests/package_text_smoke.cljk && kbb --backend sci --classpath tests tests/package_table_smoke.cljk"
   },
   "devDependencies": {
     "typescript": "^7.0.2"

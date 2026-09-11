@@ -1,4 +1,4 @@
-#!/usr/bin/env nbb
+#!/usr/bin/env kbb
 (ns svgraph-cli
   (:require [clojure.string :as str]
             ["node:fs/promises" :refer [readFile writeFile]]
