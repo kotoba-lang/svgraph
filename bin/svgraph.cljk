@@ -92,7 +92,7 @@
   (str (js/JSON.stringify value nil 2) "\n"))
 
 (defn script-path []
-  (or (some #(when (str/ends-with? (str %) "svgraph.cljs") %) (arr argv))
+  (or (some #(when (str/ends-with? (str %) "svgraph.cljk") %) (arr argv))
       (aget argv 1)
       "bin/svgraph.cljk"))
 
